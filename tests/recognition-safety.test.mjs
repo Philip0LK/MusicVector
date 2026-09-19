@@ -134,6 +134,28 @@ test('scale stability rejects skeleton splits but only downgrades uncertain rhyt
  assert.equal(base.blocks[1].underlineConfidence,.9,'input remains immutable');
 });
 
+test('界面只支持一个附点：模型读到两个及以上按一个处理并留档，归档不被改写',()=>{
+ const r=raw('1.. 2/.. | 3');
+ const before=JSON.stringify(r);
+ const pure=convert(r),fused=convert(r,geometryFor(r));
+ assert.deepEqual(r.events.slice(0,2).map(e=>e.dots),[2,2],'原始归档保留模型读数');
+ assert.deepEqual(pure.notes.map(n=>n.annotation.dots),[1,1,0],'一律按一个附点取值');
+ assert.deepEqual(pure.notes.map(n=>n.annotation.durationTicks),[24,12,24],'四分附点=36、八分附点=18');
+ assert.equal(pure.recognitionIssues.filter(i=>i.code==='dots-downgraded').length,2,'两条降级记录');
+ assert.deepEqual(fused.notes.map(({durationEvidence,...n})=>n),pure.notes,'几何与无几何两条路径口径一致');
+ assert.equal(JSON.stringify(r),before,'不改写 AI 归档');
+});
+
+test('延时横线并入后无法用单附点表示时，取不超过它的最大可显示值并留档',()=>{
+ const approximated=convert(raw('1/. -'));       // 八分附点 18 + 一条延时横线 24 = 42（双附点值）
+ assert.deepEqual(approximated.notes[0].annotation,{durationTicks:24,dots:1,dotted:true,measureEnd:false,tieToNext:false});
+ assert.ok(approximated.recognitionIssues.some(i=>i.code==='duration-approximated'));
+ const exact=convert(raw('1 -'));                // 24 + 24 = 48 仍可精确表示
+ assert.equal(exact.notes[0].annotation.durationTicks,48);
+ assert.equal(exact.notes[0].annotation.dots,0);
+ assert.ok(!exact.recognitionIssues.some(i=>['duration-approximated','dots-downgraded'].includes(i.code)),'可表示时不产生留档');
+});
+
 test('行级置信度非有限值时仍逐音取几何读数，并记录行级质量',()=>{
  const events=parseSymbols('1/ 2//');
  for(const mappingConfidence of [undefined,NaN,Infinity]){

@@ -67,6 +67,22 @@ npm run check:publish
 
 It lists the files that will be made public, and fails outright when it finds personal content (scores, library, screenshots).
 
+## One hard rule about durations and dots
+
+**The interface supports exactly one augmentation dot per note:**
+
+- When recognition reads two or more dots, the note is taken as having one dot and a `dots-downgraded` record is written (the raw archive is never rewritten and no note is dropped).
+- If folding an extension dash into a note yields a value no single dot can express (for example 18+24=42, a double-dotted quarter), the note takes the **largest displayable value that does not exceed it**, plus a `duration-approximated` record.
+- Display, layout, playback, the phone manifest and the full/short measure check must all read the same source, `annotationDots()` in `src/lib/musicStructure.js`. Never read the boolean `dotted` on its own: once the two disagree the user sees a measure that looks full but is counted as too long.
+
+## Octave marks (high and low dots)
+
+The annotation interface offers five octave levels — **middle / high (one dot) / double high (two dots) / low / double low** — that is, `note.octave ∈ {0, ±1, ±2}`:
+
+- The raise/lower buttons and the `R`/`F` shortcuts step one level at a time and stop at ±2; the "edit this line as text" box accepts `1''` (two octaves up) and `..1` (two octaves down), at most two marks.
+- Recognition has always accepted −2..2 (`src/recognitionContract.js`); display (desktop `src/EngravedRow.jsx`, phone `ScoreRow.kt`, both drawing `Math.min(2, |octave|)` dots), playback (`octave × 12`, nearest bundled sample) and the phone manifest all read `octave` directly.
+- Only values beyond ±2 are reported as a structure diagnostic (`PITCH_OCTAVE_OUT_OF_RANGE`); the annotation interface never produces them.
+
 ## Directory Conventions
 
 | Directory | Description |

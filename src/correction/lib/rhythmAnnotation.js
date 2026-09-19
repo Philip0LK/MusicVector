@@ -111,7 +111,8 @@ export function effectiveDurationTicks(annotation) {
   const normalized = normalizeAnnotation(annotation);
   if (!normalized || normalized.durationTicks === null) return null;
   if (normalized.tupletId) return null;
-  const dots = normalized.dots ?? (normalized.dotted ? 1 : 0);
+  // 界面只支持一个附点：dots 已由 normalizeAnnotation 收敛到 0/1，这里再兜一层。
+  const dots = Math.min(normalized.dots ?? (normalized.dotted ? 1 : 0), 1);
   return normalized.durationTicks * ((2 ** (dots + 1) - 1) / (2 ** dots));
 }
 
@@ -196,7 +197,7 @@ function normalizeAnnotation(value) {
   const durationTicks = VALID_BASE_TICKS.has(Number(value.durationTicks))
     ? Number(value.durationTicks)
     : null;
-  const dots = clampInteger(value.dots ?? (value.dotted ? 1 : 0), 0, 2, 0);
+  const dots = clampInteger(value.dots ?? (value.dotted ? 1 : 0), 0, 1, 0);
   return {
     durationTicks,
     dots,

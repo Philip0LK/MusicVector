@@ -106,9 +106,12 @@ export function annotationBaseTicks(annotation) {
   return BASE_TICKS.has(value) ? value : null;
 }
 
+// 界面只支持一个附点：附点数量一律收敛到 0/1。
+// 识别端读到两个及以上时，recognitionModel 已降级为一个并留档；这里再兜一层，
+// 使显示、排版、播放、手机清单与小节满/欠拍判定永远读同一个口径。
 export function annotationDots(annotation) {
   if (!annotation || typeof annotation !== "object") return 0;
-  if (annotation.dots !== undefined) return clampInteger(annotation.dots, 0, 2, 0);
+  if (annotation.dots !== undefined) return clampInteger(annotation.dots, 0, 1, 0);
   return annotation.dotted ? 1 : 0;
 }
 

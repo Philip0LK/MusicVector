@@ -13,6 +13,7 @@ const eventKeys={note:['id','kind','degree','octave','accidental','underlines','
 // 融合层的码必须在这里登记，否则带几何结果的识别会被接收校验拒绝。
 const rowIssueCodes=['extra-row-ignored','unclear-symbol','clipped-connection','ambiguous-association','unsupported-symbol','target-row-uncertain','duplicate-row-dropped',
  'note-count-mismatch','ai-missed-note','ai-extra-note','low-dot-overridden','degree-disagree','degree-unverified','geometry-unavailable','rhythm-unresolved',
+ 'dots-downgraded','duration-approximated',
  'requestId-mismatch','unknown-note-token','unknown-note-dropped','unknown-arc-dropped','mark-conflict-resolved','missing-row-placeholder','duplicate-row-conflict',
  'geometry-block-unpaired','low-row-quality','rhythm-from-default'];
 function issues(list,header=false){for(const issue of array(list,'issues')){

@@ -8,7 +8,7 @@ import {beatPositions} from './layoutRules.js';
 import {measures as measuresOf} from './model.js';
 import {flatten, rhythmOf} from './training.js';
 import {rowArcSegments} from './lib/arcEditing.js';
-import {analyzeMusicNotes} from './lib/musicStructure.js';
+import {analyzeMusicNotes, annotationDots} from './lib/musicStructure.js';
 import {buildRhythmPlaybackPlan} from './lib/rhythmPlayback.js';
 
 export const HANDOFF_VERSION = 1;
@@ -183,8 +183,9 @@ export function buildHandoffManifest({ song, document, images = [], baseTempo, g
         tieToNext: tieLink[index],
         measureEnd: Boolean(note.annotation?.measureEnd),
         missingDuration: !(note.annotation?.durationTicks > 0),
-        dots: Number(note.annotation?.dots ?? (note.annotation?.dotted ? 1 : 0)) || 0,
-        dotted: Boolean(note.annotation?.dotted),
+        // 界面只支持一个附点：清单里的 dots/dotted 与桌面统计读同一口径。
+        dots: annotationDots(note.annotation),
+        dotted: annotationDots(note.annotation) > 0,
         beamGroup: beamGroups[index] ?? null,
       };
     }),

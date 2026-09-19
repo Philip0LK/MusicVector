@@ -10,6 +10,7 @@ import {
   tieLinksForDocument,
 } from "../src/lib/musicStructure.js";
 import { buildRhythmPlaybackPlan } from "../src/lib/rhythmPlayback.js";
+import { glyph } from "../src/lib/engraveGeometry.js";
 import { flatten, rhythmOf } from "../src/training.js";
 import { documentFromImages } from "../src/recovery.js";
 import { FIXTURE_SKIP, optionalLocalFixture } from "./helpers/local-fixtures.mjs";
@@ -133,10 +134,11 @@ test("精确时值：0/1/2 附点与常见连音比例，非等时值且无累�
   assert.equal(unequalPlan.totalTicksExact, "56");
   assert.equal(unequalPlan.totalSecondsExact, "7/4");
 
+  // 界面只支持一个附点：历史数据里的 dots=2 一律按一个附点计（24×1.5=36），不再按 1.75 倍算 42
   const dotted = sheet([row(0, 0, [note("d0", { durationTicks: 24, dots: 2 })])]);
   const dottedPlan = planFor(dotted, { tempo: 80 });
-  assert.equal(dottedPlan.steps[0].durationTicksExact, "42");
-  assert.equal(dottedPlan.steps[0].durationTicks, 42);
+  assert.equal(dottedPlan.steps[0].durationTicksExact, "36");
+  assert.equal(dottedPlan.steps[0].durationTicks, 36);
 
   const withRest = sheet([row(0, 0, [note("q0", { degree: 0 }), note("q1"), note("q2")])], {
     tuplets: [{ id: "q", actual: 3, normal: 2, memberIds: ["q0", "q1", "q2"] }],
@@ -147,6 +149,24 @@ test("精确时值：0/1/2 附点与常见连音比例，非等时值且无累�
   assert.equal(restPlan.steps[0].durationTicksExact, "16");
   assert.equal(restPlan.totalTicksExact, "48");
   assert.equal(effectiveDurationFraction({ durationTicks: 24, dots: 1 }).n, 36n);
+});
+
+test("附点口径唯一：显示与统计同源，历史双附点按单附点计", () => {
+  // 统计：dots=2 按一个附点计（24×1.5=36），与 dots=1 完全相同
+  assert.equal(effectiveDurationFraction({ durationTicks: 24, dots: 2, dotted: true }).n, 36n);
+  assert.equal(effectiveDurationFraction({ durationTicks: 24, dots: 1 }).n, 36n);
+  // 显示：同一口径——画一个点、1.5 拍不画延时横线、宽度与单附点一致
+  const dotted = glyph({ degree: 1, accidental: null, annotation: { durationTicks: 24, dots: 2, dotted: true } });
+  const single = glyph({ degree: 1, accidental: null, annotation: { durationTicks: 24, dots: 1, dotted: true } });
+  assert.equal(dotted.dot, true);
+  assert.equal(dotted.tail, 0);
+  assert.equal(dotted.width, single.width, "双附点与单附点显示完全相同");
+  const plain = glyph({ degree: 1, accidental: null, annotation: { durationTicks: 24, dots: 0, dotted: false } });
+  assert.equal(plain.dot, false);
+  // 两个字段打架时（dots=1 但 dotted=false），显示与统计都以 dots 为准，不再分叉
+  const conflicted = { durationTicks: 24, dots: 1, dotted: false };
+  assert.equal(glyph({ degree: 1, accidental: null, annotation: conflicted }).dot, true);
+  assert.equal(effectiveDurationFraction(conflicted).n, 36n);
 });
 
 test("小节身份与拍号：跨行小节、弱起/不完整有预期与实际长度，不通过凑拍改音符", () => {
@@ -452,11 +472,34 @@ test('Existing editor edits synchronize canonical measures, ties and dotted valu
  const tied=saved(edit(untied,{row:0,note:0},'tieToNext'));
  assert.equal(planFor(tied).steps[1].trigger,false);
  const dotted=structuredClone(initial);dotted.rows[0].notes[0].annotation.dots=2;dotted.rows[0].notes[0].annotation.dotted=true;
+ // 未点击之前，dots=2 就已按一个附点计（界面口径），不再按 1.75 倍
+ assert.equal(planFor(dotted).steps[0].durationTicks,36);
  const plain=saved(edit(dotted,{row:0,note:0},'dotted'));
  assert.equal(plain.rows[0].notes[0].annotation.dots,0);
  assert.equal(planFor(plain).steps[0].durationTicks,24);
  const again=saved(edit(plain,{row:0,note:0},'dotted'));
  assert.equal(planFor(again).steps[0].durationTicks,36);
+ // 音区：标注界面支持 0/±1/±2 五档，逐级增减、到 ±2 停下，行文本同步
+ const up1=saved(edit(initial,{row:0,note:0},'raise'));
+ assert.equal(up1.rows[0].notes[0].octave,1);
+ const up2=saved(edit(up1,{row:0,note:0},'raise'));
+ assert.equal(up2.rows[0].notes[0].octave,2,'双高音');
+ assert.ok(up2.rows[0].text.includes("''"),'行文本写成两个撇号：'+up2.rows[0].text);
+ assert.equal(saved(edit(up2,{row:0,note:0},'raise')).rows[0].notes[0].octave,2,'到 +2 停下');
+ const back1=saved(edit(up2,{row:0,note:0},'lower'));
+ assert.equal(back1.rows[0].notes[0].octave,1);
+ const back0=saved(edit(back1,{row:0,note:0},'lower'));
+ assert.equal(back0.rows[0].notes[0].octave,0);
+ const down1=saved(edit(back0,{row:0,note:0},'lower'));
+ assert.equal(down1.rows[0].notes[0].octave,-1);
+ const down2=saved(edit(down1,{row:0,note:0},'lower'));
+ assert.equal(down2.rows[0].notes[0].octave,-2,'双低音');
+ assert.ok(down2.rows[0].text.startsWith('..'),'行文本写成两个点：'+down2.rows[0].text);
+ assert.equal(saved(edit(down2,{row:0,note:0},'lower')).rows[0].notes[0].octave,-2,'到 -2 停下');
+ // 文本通道：接受一个或两个标记，三个及以上仍拒绝
+ assert.equal(saved(replaceText(initial,0,"1'' 1 |").document).rows[0].notes[0].octave,2);
+ assert.equal(saved(replaceText(initial,0,'..1 1 |').document).rows[0].notes[0].octave,-2);
+ assert.throws(()=>replaceText(initial,0,"1''' 1 |"),/最多两个/);
 });
 
 test('Explicit pickup length is enforced; unspecified legacy pickup remains compatible',()=>{

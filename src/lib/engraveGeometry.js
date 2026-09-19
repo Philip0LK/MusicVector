@@ -1,6 +1,8 @@
 // 简谱字形的纯几何：训练谱、校对谱与手机端移植都以这里为唯一依据。
 // 本模块不依赖 React 或 DOM，可直接在 Node 中测试。
 // 所有数值都在 24 单位字形空间里，渲染时由外层统一乘 scale（fontSize/24）。
+import { annotationDots } from './musicStructure.js';
+
 export const DIGIT_WIDTH = 14;
 export const BASE_FONT_SIZE = 24;
 export const NOTE_ADVANCE = 5;
@@ -9,11 +11,14 @@ export const MEASURE_PADDING = 16;
 export function glyph(n) {
   const a = n.annotation;
   const t = a.durationTicks;
-  const beats = ((t || 24) / 24) * (a.dotted ? 1.5 : 1);
+  // 附点与统计同源：统一读 annotationDots（界面只支持一个附点），
+  // 不再单独读布尔 dotted，避免「标记有附点却按无附点画」这类分叉。
+  const dotted = annotationDots(a) > 0;
+  const beats = ((t || 24) / 24) * (dotted ? 1.5 : 1);
   const tail = beats >= 2 ? Math.floor(beats) - 1 : 0;
   const rest = n.degree === 0;
   const acc = n.accidental && !rest ? 12 : 0;
-  const dot = !!a.dotted && beats < 2;
+  const dot = dotted && beats < 2;
   return {
     acc,
     tail,
