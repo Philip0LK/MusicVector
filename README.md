@@ -1,93 +1,105 @@
-# 乐北斗 MusicVector
+# MusicVector · 乐北斗
 
-**把乐谱照片变成可以逐音跟练的练习曲。**
+English | [中文速览](#中文速览)
 
-拍下简谱照片传进来，程序认出错音高和节奏，再用真实钢琴音色按准确时值演奏。你可以只听某一段、反复循环那一小段、放慢速度，跟着它练音准。
+**Turn photos of numbered notation into practice pieces you can follow note by note.**
 
-曲目、原图和练习记录都保存在你自己的电脑上，不上传，也不需要注册账号。
+Upload a photo of a jianpu (numbered musical notation) score and MusicVector reads the pitches and rhythms, then plays them back on a real piano sound with exact note durations. Loop a single passage, slow it down, and practise your intonation against it.
 
-## 下载与安装
+Songs, source images and practice progress stay on your own computer. Nothing is uploaded, and no account is needed.
 
-到本仓库的 **Releases** 页面下载需要的文件：
+## Download
 
-| 文件 | 用途 |
+Get the files from the **Releases** page of this repository:
+
+| File | What it is |
 |---|---|
-| `MusicVector-1.0-windows-x64.zip` | 电脑端（Windows 64 位） |
-| `MusicVector-1.0-android.apk` | 手机端（安卓 8.0 及以上） |
+| `MusicVector-1.0-windows-x64.zip` | Desktop app (Windows 64-bit) |
+| `MusicVector-1.0-android.apk` | Phone app (Android 8.0 or newer) |
 
-电脑端不需要另外安装任何运行环境，压缩包里已经带好了。请解压到任意**可以写入**的目录（例如 `D:\乐北斗`），不要直接在压缩包里运行。
+The desktop download needs no separate runtime — it is all bundled. Unzip it into any **writable** folder (for example `D:\MusicVector`) and run it from there, not from inside the archive.
 
-## 开始使用
+## Getting started
 
-1. 双击 **`启动.cmd`**。黑窗口一闪就自行关闭，浏览器会自动打开乐北斗，服务在后台运行。
-2. 点 **新建歌曲**，上传乐谱照片：一页一张，可以多页。只收图片（PNG / JPEG / WebP），PDF 请先转成图片。
-3. 到 **设置** 里填一次模型密钥并验证。识别需要联网调用视觉模型，密钥用 Windows 当前用户加密后只存在本机，换电脑需要重新填。
-4. 点 **开始识别**。程序把每一页切成谱行逐行识别，结果先保存再返回，中途关电脑也不会丢。
-5. 识别不可能百分之百准确，看到不对的地方用 **修正乐谱** 改好并保存。
-6. 回到训练页，点任意一个音就从那里开始练。
+1. Double-click **`启动.cmd`** ("Start"). A console window flashes and closes on its own; your browser opens MusicVector and the service keeps running in the background.
+2. Click **New song** and upload score photos: one page per image, as many pages as you like. Images only (PNG / JPEG / WebP) — convert PDFs to images first.
+3. Open **Settings** once, enter your model API key and verify it. Recognition calls a vision model online; the key is encrypted for the current Windows user and stored on this machine only, so you enter it again on another computer.
+4. Click **Start recognition**. Each page is split into staff lines and recognised line by line. Results are saved before they are returned, so nothing is lost if the computer is switched off mid-way.
+5. Recognition is never perfectly accurate — fix what is wrong in **Correct score** ("修正乐谱") and save.
+6. Back on the practice page, click any note to start practising from there.
 
-用完双击 **`停止.cmd`** 结束。关闭浏览器**不会**停止后台服务。
+Double-click **`停止.cmd`** ("Stop") when you are done. Closing the browser does **not** stop the background service.
 
-## 练习时能做什么
+## While practising
 
-- **点任意一个音**就从那里开始播放；**框选一段**可以只反复练这一段。
-- **演奏速度**有五档预设 0.5× / 0.75× / 0.9× / 1× / 1.1×，也能细调到 0.25×–1.25×。
-- **每个音的长度正好等于它自己的时值**：八分音符就是四分音符的一半，听到的长短就是谱面上的长短，跟练时节奏不会被拖尾压歪。
-- 上方是**乐谱原图**，下方是**识别出的简谱**，原图可以缩放，方便对照。
-- **当前音可以单独试听**，会把这一个音完整响完，适合对音准。
+- **Click any note** to start playback there; **select a passage** to loop only that part.
+- **Speed** offers five presets — 0.5× / 0.75× / 0.9× / 1× / 1.1× — plus fine adjustment from 0.25× to 1.25×.
+- **Every note lasts exactly its written value**: an eighth note is half a quarter note, so what you hear matches the page and the rhythm is not smeared by note tails.
+- The **original score image** sits above the **recognised notation**, and the image zooms for side-by-side comparison.
+- **Preview the current note on its own** — it plays that single note in full, which is what you want when checking intonation.
 
-## 在手机上练
+## Practising on a phone
 
-手机端只做三件事：扫码收曲目、打开已收曲目、删掉不要的。它没有编辑功能，改谱仍然在电脑上做。
+The phone app does three things only: scan to receive a song, open a received song, delete one you no longer want. It cannot edit — editing stays on the desktop.
 
-1. 手机和电脑连**同一个 Wi-Fi**。
-2. 把 `乐北斗.apk` 传到手机上安装。
-3. 电脑上打开一首曲子，点拍号右边的 **发送到手机**，屏幕上会出现二维码。
-4. 用手机端里的扫码功能扫这个二维码，曲目就传到手机上了，之后不带电脑也能练。
+1. Phone and computer on the **same Wi-Fi**.
+2. Copy `乐北斗.apk` to the phone and install it.
+3. Open a song on the computer and click **Send to phone** ("发送到手机") to the right of the time signature — a QR code appears.
+4. Scan the code with the phone app and the song is transferred, so you can practise without the computer afterwards.
 
-几点要注意：
+Worth knowing:
 
-- 二维码**十分钟内有效**，关掉发送面板就作废。同一网络下的其他人看不到你的曲库和密钥，只有这一个临时曲目能被取走。
-- 连不上时，先确认手机和电脑是不是同一个网络；Windows 防火墙询问时选**允许专用网络**。
-- 排查网络问题**不要用 ping 判断**：很多网络只挡 ping，实际传输是通的。
+- The QR code is **valid for ten minutes** and is voided when you close the send panel. Other people on the same network cannot see your library or your key — only that one temporary song can be fetched.
+- If it will not connect, first check that both devices really are on the same network; when Windows Firewall asks, allow **private networks**.
+- **Do not use ping** to diagnose network trouble: many networks block ping while the transfer itself works fine.
 
-## 数据与备份
+## Data and backup
 
-所有内容都在程序目录下的 `data` 文件夹里：
+Everything lives in the `data` folder inside the program directory:
 
 ```text
 data/
-├── library.json          曲目索引
-├── settings.json         设置
-├── practice.json         上次练到哪
-└── songs/<曲目 ID>/
-    ├── song.json         曲目：音符、节奏、调号
-    ├── images/           原图
-    └── recognition/      识别过程记录
+├── library.json          song index
+├── settings.json         settings
+├── practice.json         where you last practised
+└── songs/<song id>/
+    ├── song.json         the song: notes, rhythm, key
+    ├── images/           source images
+    └── recognition/      recognition records
 ```
 
-- **备份**：停止程序后，把整个 `data` 文件夹复制到安全位置，就是完整备份。
-- **换电脑**：把整个乐北斗文件夹复制过去即可，模型密钥需要重新填一次。
-- **恢复**：先另存当前的 `data`，再用完整备份整体替换；不要把不同备份里的单个文件混着用。
-- **清空重来**：停止程序后删掉 `data` 文件夹，下次启动就是全新的空曲库。
-- 程序意外中断时，未完成的保存会在下次启动时自动恢复。
+- **Backup**: stop the program, then copy the whole `data` folder somewhere safe — that is a complete backup.
+- **Moving to another computer**: copy the whole MusicVector folder across; only the model key has to be entered again.
+- **Restore**: save the current `data` aside first, then replace it wholesale. Never mix single files from different backups.
+- **Starting over**: stop the program and delete the `data` folder; the next start gives you an empty library.
+- If the program is interrupted, unfinished saves are recovered automatically on the next start.
 
-## 常见问题
+## FAQ
 
-**没有声音？** 先看浏览器和系统音量；第一次播放要加载钢琴音色，稍等一两秒。
+**No sound?** Check the browser and system volume first. The first playback has to load the piano samples, so give it a second or two.
 
-**识别失败、没有输出？** 识别需要联网。确认密钥已通过验证、网络可用。程序不会自动重试；失败时会保留模型的原始返回，便于排查原因。
+**Recognition fails with no output?** Recognition needs a network connection. Check that the key has been verified and the network works. Nothing is retried automatically; the model's raw reply is kept so the cause can be traced.
 
-**识别结果整体不对？** 换一张更清楚的原图：正对、光线均匀、不倾斜、不反光。识别质量主要取决于照片质量。
+**The result is wrong overall?** Try a clearer photo: straight on, even lighting, no tilt, no glare. Recognition quality mostly follows photo quality.
 
-**端口被占用？** 程序会自动换一个可用端口，以本次弹出的浏览器地址为准。重复双击 `启动.cmd` 只会打开已经开着的那个实例。
+**Port already in use?** The program picks another free port automatically — trust the address that opened in your browser. Double-clicking `启动.cmd` again only opens the instance that is already running.
 
-**断网还能用吗？** 练习、播放和手机传输都可以（手机与电脑在同一 Wi-Fi 内）；只有识别需要联网。
+**Does it work offline?** Practising, playback and phone transfer do, as long as phone and computer share a Wi-Fi network. Only recognition needs the internet.
 
-**可以用别的模型吗？** 可以。设置里可选 Kimi、智谱 GLM、DeepSeek、通义千问，接口地址可改，也支持其它兼容 OpenAI 格式的服务。
+**Can I use a different model?** Yes. Settings offers Kimi, Zhipu GLM, DeepSeek and Qwen, the endpoint can be changed, and other OpenAI-compatible services work as well.
 
-## 许可与致谢
+## License and credits
 
-- 本项目以 [MIT 许可证](LICENSE) 发布。
-- 内置钢琴音色来自 Salamander Grand Piano V3，采用 CC BY 3.0 许可。
-- 随包运行环境与各开源库的来源和许可，见 `THIRD_PARTY_NOTICES.md`。
+- Released under the [MIT License](LICENSE).
+- The bundled piano sound is Salamander Grand Piano V3, licensed CC BY 3.0.
+- Sources and licences of the bundled runtime and open-source libraries are listed in `THIRD_PARTY_NOTICES.md`.
+
+## 中文速览
+
+乐北斗 MusicVector：把简谱照片变成可以逐音跟练的练习曲。识别出音高和节奏后，用真实钢琴音色按准确时值演奏，可以只听某一段、循环那一小段、放慢速度。曲目和练习记录都保存在你自己的电脑上，不上传，也不需要账号。
+
+- **下载**：在本仓库 **Releases** 页面下载 `MusicVector-1.0-windows-x64.zip`（电脑端，已自带运行环境）或 `MusicVector-1.0-android.apk`（手机端，安卓 8.0 及以上）。解压到**可以写入**的目录，不要直接在压缩包里运行。
+- **开始**：双击 `启动.cmd` → 新建歌曲、上传乐谱照片 → 在设置里填模型密钥并验证 → 开始识别 → 用「修正乐谱」改错 → 回训练页点任意一个音开始练。用完双击 `停止.cmd`（关闭浏览器不会停止服务）。
+- **手机端**：手机与电脑连同一个 Wi-Fi，电脑上打开曲目后点「发送到手机」出现二维码，手机扫码接收，二维码十分钟内有效。手机端只能收曲目、打开和删除，改谱仍在电脑上做。
+- **数据与网络**：全部内容都在程序目录的 `data` 文件夹里，停止程序后整体复制走就是完整备份；识别需要联网，练习和播放不需要。
+- **许可**：MIT；内置钢琴音色为 Salamander Grand Piano V3（CC BY 3.0）。
