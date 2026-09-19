@@ -48,9 +48,9 @@ SOFTWARE.
 
 ## Bundled runtime environment
 
-The license for Node.js 24.14.0 and the notices for its built-in dependencies are in `runtime/node/LICENSE`; those for Python 3.12.14 are in `runtime/python/LICENSE.txt`. The full licenses for OpenCV 4.12.0.88, NumPy 2.2.6 and Pillow 11.3.0, together with the notices for bundled libraries, are kept in `runtime/python/Lib/site-packages/*dist-info/`. The ADB notices are in `runtime/adb/NOTICE.txt`.
+The license for Node.js 24.14.0 and the notices for its built-in dependencies are in `runtime/node/LICENSE`; the corresponding files for Python 3.12.14 are in `runtime/python/LICENSE.txt`. The full licenses for OpenCV 4.12.0.88, NumPy 2.2.6 and Pillow 11.3.0, together with the notices for bundled libraries, are kept in `runtime/python/Lib/site-packages/*dist-info/`. The ADB notices are in `runtime/adb/NOTICE.txt`.
 
-Third-party JavaScript licenses for the front end and the local service are collected in `licenses`, including React, React DOM, AI SDK, the individual model adapters, qrcode-generator and their dependencies. Versions are pinned by the source package-lock.json.
+Third-party JavaScript licenses for the front end and the local service are collected under `licenses`, covering React, React DOM, AI SDK, the individual model adapters, qrcode-generator and their dependencies. Versions are pinned by the source package-lock.json.
 
 ## Android app
 

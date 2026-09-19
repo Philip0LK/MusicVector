@@ -2,11 +2,11 @@ English | [中文](DEVELOPMENT.md)
 
 # Development Notes
 
-For anyone changing this repository. Instructions for first-time use of the product are in [README.md](./README.md).
+For anyone modifying this repository. Instructions for first-time use of the product are in [README.md](./README.md).
 
 ## Preparation
 
-- Node 20 or higher (it is enough that `node -v` shows it).
+- Node 20 or higher (as long as `node -v` shows it).
 - `npm ci` to install dependencies.
 - `runtime/` is the runtime environment shipped with the package (Node + Python + ADB) and does not go into the repository. The UI runs without it, but **image slicing will fail** — slicing is executed by `runtime/python/python.exe`. Just copy one over from a release package.
 
@@ -22,9 +22,9 @@ npm run dev -- --no-open         # do not open the browser automatically
 The command starts two things at once: the **product service** (the library, images, slicing, recognition and sending to the phone all live there) and **Vite** (front-end source and hot reload). The browser connects to Vite, and `/api`, `/media`, `/handoff` are reverse-proxied by Vite to the product service, so:
 
 - After you edit a file in `src/` and save it, the page updates automatically — no rebuild and no manual refresh;
-- Every feature in the UI goes through the real service, consistent with the behavior after packaging.
+- Every feature in the UI goes through the real service, matching the behavior of the packaged build.
 
-Authentication for the proxy is handled by `tools/dev.mjs` (injects the startup token, rewrites Host, strips the Origin from write requests); the product code needs no changes at all for dev mode.
+Authentication for the proxy is handled by `tools/dev.mjs` (injects the startup token, rewrites Host, and strips the Origin from write requests); the product code needs no changes at all for dev mode.
 
 To stop: press `Ctrl+C` in the terminal.
 
@@ -33,7 +33,7 @@ To stop: press `Ctrl+C` in the terminal.
 ```bash
 npm test               # unit tests (algorithms, protocol, storage, geometry)
 npm run test:ai        # empty library → recognition (local simulated model) → proofreading → playback, the whole chain
-npm run test:release   # portable package acceptance: copy two and really start them, verifying port isolation, upload and slicing, and retention across restart
+npm run test:release   # portable package acceptance: copy two and actually start them, verifying port isolation, upload and slicing, and retention across restart
 npm run test:editor    # stability of the editing toolbar at three resolutions
 npm run fixtures:mobile  # after changing playback/layout algorithms, regenerate the mobile golden fixtures
 ```
@@ -49,7 +49,7 @@ cd android
 
 - The toolchain (JDK 17 + Android SDK + Gradle) is not in the repository: set `YUEBEIDOU_TOOLING` to point at it, or create a `.tooling` directory junction under `android/` that points at it.
 - The debug build's package name is `com.yuebeidou.player.debug`, so it can be installed alongside the release build.
-- Release signing: copy `keystore.properties.example` to `keystore.properties` and fill it in, and `assembleRelease` will sign with it; neither that file nor the keystore goes into the repository.
+- Release signing: copy `keystore.properties.example` to `keystore.properties` and fill it in; `assembleRelease` will sign with it, and neither that file nor the keystore goes into the repository.
 
 ## Packaging
 

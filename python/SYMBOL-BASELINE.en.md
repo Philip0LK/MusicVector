@@ -15,13 +15,13 @@ Labels and source-image hashes: `output/symbol-baseline/labels.json`.
 Per-note errors and summary: `output/symbol-baseline/results.json`.
 Reference image for the annotation: `output/lyric-slices/baseline-source.jpg`.
 
-5 real slices, 78 notes, taken from 富士山下, K歌之王 and BabySong, including single and double duration-shortening lines, augmentation dots, low-octave dots, lyrics, prolongation dashes and a short final row. The labels were established by reading the images by hand before the algorithm was run; they were not revised backwards from the run results, and no parameters were tuned. The sample is a deliberately chosen exploratory sample — not random, not an independent large-scale benchmark, looked at by one person only — and still needs review.
+5 real slices, 78 notes, taken from 富士山下, K歌之王 and BabySong, including single and double duration-shortening lines, augmentation dots, low-octave dots, lyrics, prolongation dashes and a short final row. The labels were established by hand, reading the images before the algorithm was run; they were not revised backwards from the run results, and no parameters were tuned. The sample is a deliberately chosen exploratory sample — not random, not an independent large-scale benchmark, looked at by one person only — and still needs review.
 
 ## Subject under test and conditions
 
 The original `src/octaveDetector.js` was run, with `analyzeRhythmSymbols` and `analyzeLowOctaves`. As in the browser adapter, the input is scaled to 1440 pixels wide. This test used the current row slices as input and was given a manual note-digit sequence; it is not a reproduction of the old full-page end-to-end pipeline.
 
-The algorithm uses the note count and order to match geometry, so this is "accessory-symbol recognition given the correct note sequence", not independent note recognition. The measure-end ground truth is also recorded by note index. Nothing can be inferred from this about digit recognition, AI recognition or the product's real end-to-end accuracy.
+The algorithm uses the note count and order to match geometry, so this is "accessory-symbol recognition given the correct note sequence", not independent note recognition. The measure-end ground truth is likewise recorded by note index. Nothing can be inferred from this about digit recognition, AI recognition or the product's real end-to-end accuracy.
 
 ## Results on the original slices
 
@@ -44,6 +44,6 @@ Concrete failures: the lyric "咒。" in a short final row was misused as note g
 - Keep the current cropping version; the first version does not automatically re-recognize anomalies, and only records validation errors for the correction interface.
 - Do not insist on one request per row any more: the recognition data is still organized by row, and the calling layer tries independent image batches of 2–4 consecutive rows from the same page, with a suggested starting point of 3 rows. The 8 pieces of material total 66 rows, so 66 calls can drop to 24 (header recognition not included). This is a configuration starting point; AI quality and actual cost have not been verified.
 - Record costs separately for the repeated prompt, image input, structured output and optional thinking tokens; putting several images in one request does not guarantee that image tokens fall by the same amount. Compare the 1/3/full-page strategies after real usage has been recorded.
-- The algorithm currently only outputs candidates and evidence, and does not directly override the AI. Duration-shortening lines can be the first item tried in hybrid recognition; augmentation dots and bar lines cannot yet be handled by the algorithm alone; for low-octave dots, enlarge the positive sample first.
+- The algorithm currently only outputs candidates and evidence, and does not directly override the AI. Duration-shortening lines can be the first candidate tried in hybrid recognition; augmentation dots and bar lines cannot yet be handled by the algorithm alone; for low-octave dots, the positive sample needs to be enlarged first.
 - Note digits, accidentals, high-octave dots, arcs, slur groups, repeat structures and lyrics have not yet produced measurement conclusions this time.
 - The next round needs a three-way comparison of AI, algorithm and hybrid on the same set of manual ground truth. Do not treat unchecked recognition results in old data as ground truth.
