@@ -36,12 +36,19 @@ async function waitForInstance(file, child, readOutput) {
     const text = await fs.readFile(file, 'utf8').catch(() => null);
     if (text) {
       try {
-        return JSON.parse(text);
+        const instance = JSON.parse(text);
+        // 只认刚起的那个进程写的实例文件：数据目录里可能残留着上一次运行的旧文件，
+        // 直接采信它会拿到过期的令牌，于是所有接口都返回 401。
+        if (instance.pid === child.pid) return instance;
       } catch {
         // 正在写入，稍后重试
       }
     }
-    if (child.exitCode !== null) throw Error('产品服务已退出：\n' + readOutput());
+    if (child.exitCode !== null) {
+      const existing = await fs.readFile(file, 'utf8').catch(() => null);
+      if (existing) throw Error('该数据目录已有实例在运行，请先停止它再启动开发模式：\n' + existing.trim());
+      throw Error('产品服务已退出：\n' + readOutput());
+    }
     await sleep(250);
   }
   throw Error('等待产品服务启动超时：\n' + readOutput());
