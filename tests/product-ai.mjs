@@ -1,0 +1,36 @@
+import {chromium} from '@playwright/test';
+import fs from 'node:fs/promises';import path from 'node:path';import http from 'node:http';import {spawn} from 'node:child_process';import assert from 'node:assert/strict';
+import {tinyScorePng} from './helpers/tiny-png.mjs';
+const home=path.resolve('qa/ai-service-'+Date.now());await fs.mkdir(home,{recursive:true});let count=0,fail=false;
+const model=http.createServer(async(req,res)=>{let input='';for await(const part of req)input+=part;const value=JSON.parse(input);count++;assert.equal(req.headers.authorization,'Bearer product-test-secret');
+ if(fail){res.writeHead(429,{'Content-Type':'application/json'});res.end(JSON.stringify({error:{message:'product-test-secret quota exceeded'}}));return}
+ let answer={rows:[],test:true};const content=value.messages?.at(-1)?.content;
+ if(Array.isArray(content)){const texts=content.filter(c=>c.type==='text').map(c=>c.text),token=t=>t.split('=')[1].split('。')[0],requestId=token(texts[0]),head=texts.find(t=>t.startsWith('headerId=')),page=texts.find(t=>t.startsWith('pageId=')),labels=texts.filter(t=>t.startsWith('rowId=')).map(token),header={title:'产品链路验收',key:{tonic:'C',accidental:'none'},meters:[{numerator:4,denominator:4}],tempo:{bpm:80,beatDenominator:4,beatDots:0},issues:[]},row=id=>({rowId:id,symbols:'1',arcs:[],tuplets:[],meterMarks:[],issues:[]});answer=head?{requestId,headerId:token(head),...header}:page?{requestId,pageId:token(page),header:page.includes('includeHeader=true')?header:null,rows:[row('r1')],pageIssues:[]}:{requestId,rows:labels.map(row)};}
+ if(value.stream){res.writeHead(200,{'Content-Type':'text/event-stream'});for(const chunk of [{choices:[{index:0,delta:{role:'assistant',content:JSON.stringify(answer)},finish_reason:null}]},{choices:[{index:0,delta:{},finish_reason:'stop'}]}])res.write('data: '+JSON.stringify({id:'test',created:1,model:'test',...chunk})+'\n\n');res.end('data: [DONE]\n\n')}
+ else{res.writeHead(200,{'Content-Type':'application/json'});res.end(JSON.stringify({id:'test',created:1,model:'test',choices:[{index:0,message:{role:'assistant',content:'正常'},finish_reason:'stop'}],usage:{prompt_tokens:1,completion_tokens:1,total_tokens:2}}))}
+});await new Promise(r=>model.listen(0,'127.0.0.1',r));
+const child=spawn(path.resolve('runtime/node/node.exe'),[path.resolve('server/product.mjs'),'--home',home],{env:{...process.env,YUEBEIDOU_NO_OPEN:'1',YUEBEIDOU_NO_USB:'1',YUEBEIDOU_PYTHON:path.resolve('runtime/python/python.exe')},windowsHide:true,stdio:['ignore','pipe','pipe']});let output='';child.stdout.on('data',d=>output+=d);child.stderr.on('data',d=>output+=d);let instance;
+try{
+ for(let i=0;i<100;i++){try{instance=JSON.parse(await fs.readFile(path.join(home,'data/.instance.json')));break}catch{await new Promise(r=>setTimeout(r,100))}}assert.ok(instance,output);
+ const api=async(url,value,method='POST')=>fetch(instance.url+url,{method,headers:{'Content-Type':'application/json','x-yuebeidou-token':instance.token},body:value===undefined?undefined:JSON.stringify(value)});
+ assert.equal((await api('/api/library',{revision:0,value:{songs:[{id:'test'}],settings:{}}},'PUT')).status,200);
+ const endpoint='http://127.0.0.1:'+model.address().port+'/v1';
+ const verify=await api('/api/credentials/verify',{provider:'glm',endpoint,model:'test',apiKey:'product-test-secret'});assert.equal(verify.status,200,await verify.text());
+ const options={songId:'test',imageId:'image',runId:'run',requestId:'request',kind:'rows',provider:'glm',endpoint,model:'test',system:'test',messages:[{role:'user',content:'test'}]};
+ const response=await api('/api/ai/request',options),text=await response.text();assert.match(text,/"result"/,text);assert.equal(text.includes('product-test-secret'),false);
+ let names=await fs.readdir(path.join(home,'data/songs/test/recognition'));assert.equal(names.length,1);let record=JSON.parse(await fs.readFile(path.join(home,'data/songs/test/recognition',names[0])));assert.equal(record.status,'ok');assert.equal(record.input.system,'test');assert.equal(record.output.test,true);
+ fail=true;const before=count;const failure=await (await api('/api/ai/request',options)).text();assert.match(failure,/429/);assert.equal(failure.includes('product-test-secret'),false);assert.equal(count,before+1);
+ names=await fs.readdir(path.join(home,'data/songs/test/recognition'));assert.equal(names.length,2);
+ const records=await Promise.all(names.map(n=>fs.readFile(path.join(home,'data/songs/test/recognition',n),'utf8')));assert.ok(records.some(x=>JSON.parse(x).status==='failed'));assert.equal(records.join('').includes('product-test-secret'),false);
+ fail=false;await api('/api/library',{revision:1,value:{songs:[],settings:{provider:'glm',endpoint,model:'test'}}},'PUT');
+ // 上传用的乐谱图由脚本现场生成，测试不依赖任何真实曲谱。
+ const scoreImage=path.resolve('qa/test-score.png');await fs.mkdir(path.dirname(scoreImage),{recursive:true});await fs.writeFile(scoreImage,tinyScorePng());
+ const browser=await chromium.launch({headless:true,executablePath:'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe'});
+ try{const page=await browser.newPage({viewport:{width:1500,height:1000}}),errors=[];page.on('pageerror',e=>errors.push(e.message));await page.goto(instance.url+'/?launch='+instance.token);await page.getByRole('button',{name:'新建歌曲',exact:true}).click();await page.getByLabel('上传乐谱图片').setInputFiles(scoreImage);await page.getByRole('button',{name:'开始识别',exact:true}).click();
+ await page.getByRole('button',{name:'下一步',exact:true}).waitFor({timeout:60000});await page.getByRole('button',{name:'下一步',exact:true}).click();await page.getByRole('button',{name:'完成导入',exact:true}).click();await page.getByRole('button',{name:'修正乐谱',exact:true}).click();const frame=page.frameLocator('iframe'),editor=frame.locator('.editor');await editor.waitFor();
+ const rows=await frame.locator('.workspace-row').count();for(let i=0;i<rows;i++){const notes=frame.locator('.workspace-row').nth(i).locator('.engraved-note');for(let n=0;n<await notes.count();n++){await notes.nth(n).click();await editor.press('3')}}
+ await frame.getByRole('button',{name:'保存并返回训练',exact:true}).click();await page.locator('iframe').waitFor({state:'detached'});await page.getByRole('button',{name:'播放',exact:true}).click();await page.getByRole('button',{name:'暂停',exact:true}).waitFor();await page.getByRole('button',{name:'暂停',exact:true}).click();await page.screenshot({path:'qa/blank-recognition-to-training.png'});assert.deepEqual(errors,[]);
+ const result=await (await api('/api/library',undefined,'GET')).json();assert.equal(result.songs[0].completed,true);assert.equal(result.songs[0].images[0].status,'done');console.log('PASS blank upload → real Python and browser geometry → mock model → local recognition archive → correction → playback');
+ }finally{await browser.close()}
+ console.log('PASS server-side AI proxy, DPAPI, streamed result durable before success, raw input/output records, failed request records, no retry, credential redaction');
+}finally{if(instance)await fetch(instance.url+'/api/shutdown',{method:'POST',headers:{'x-yuebeidou-token':instance.token}}).catch(()=>{});model.close();await new Promise(r=>setTimeout(r,300));if(child.exitCode===null)child.kill()}

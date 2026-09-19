@@ -1,0 +1,36 @@
+{
+  "name": "yuebeidou",
+  "version": "1.0.0",
+  "description": "乐北斗（MusicVector）：把乐谱照片变成可以逐音跟练的练习曲",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "vite build && node tools/build-server.mjs",
+    "start": "node server/product.mjs",
+    "dev": "node tools/dev.mjs",
+    "package": "node tools/package.mjs",
+    "fixtures:mobile": "node tools/mobile-fixtures.mjs",
+    "check:publish": "node tools/check-publish.mjs",
+    "test": "node --test tests/model.test.mjs tests/music-structure.test.mjs tests/library.test.mjs tests/recovery.test.mjs tests/crop-geometry.test.mjs tests/ai-providers.test.mjs tests/product-storage.test.mjs tests/recognition.test.mjs tests/recognition-archive.test.mjs tests/arcs.test.mjs tests/rhythm-geometry.test.mjs tests/rhythm-fusion.test.mjs tests/recognition-safety.test.mjs tests/notation-features.test.mjs tests/recognition-boundaries.test.mjs tests/short-ids.test.mjs tests/page-short-ids.test.mjs tests/first-layer.test.mjs tests/crop-upgrade.test.mjs tests/degradation.test.mjs tests/geometry-default.test.mjs tests/handoff.test.mjs tests/handoff-server.test.mjs tests/envelope.test.mjs",
+    "test:ai": "node tests/product-ai.mjs",
+    "test:release": "node tests/product-release.mjs",
+    "test:editor": "node tests/editor-toolbar-browser.mjs"
+  },
+  "dependencies": {
+    "@ai-sdk/alibaba": "^2.0.44",
+    "@ai-sdk/deepseek": "^3.0.42",
+    "@ai-sdk/moonshotai": "^3.0.48",
+    "@ai-sdk/openai-compatible": "^3.0.47",
+    "@vitejs/plugin-react": "5.0.4",
+    "ai": "^7.0.97",
+    "qrcode-generator": "^1.4.4",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "vite": "6.4.2"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "jsqr": "^1.4.0"
+  }
+}

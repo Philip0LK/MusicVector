@@ -1,0 +1,113 @@
+/* Opt-in A/B previews. Default layout is deliberately untouched. */
+html .editor.inline-modes .editing-controls{height:auto;margin-top:24px}
+html .editor.inline-modes .properties{display:flex;height:auto;gap:18px}
+html .editor.inline-modes .properties button{font-size:13px;padding:8px 12px;min-height:44px!important}
+html .inline-modes .duration-options{width:min(100%,660px);grid-template-columns:44px repeat(5,minmax(0,1fr));gap:0;align-items:center}
+html .inline-modes .duration-options::before{content:"时值";font-size:12px;color:#777}
+html .inline-modes .duration-options button{height:54px;border-radius:0;border-right-width:0}
+html .inline-modes .duration-options button:first-of-type{border-radius:5px 0 0 5px}
+html .inline-modes .duration-options button:last-of-type{border-radius:0 5px 5px 0;border-right-width:1px}
+html .inline-modes .flag-options{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+html .inline-modes .flag-options::before{content:"标记";font-size:12px;color:#777;width:26px;flex-shrink:0}
+html .inline-modes .flag-options button{border:0;background:none!important;color:#555!important;gap:8px;padding:4px 0!important;min-height:36px!important}
+html .inline-modes .flag-options button::before{content:"";width:15px;height:15px;flex:none;border:1px solid #bbb;border-radius:3px}
+html .inline-modes .flag-options button.active::before{content:"✓";background:#292929;border-color:#292929;color:white;font-size:12px;line-height:15px}
+html .inline-modes .flag-options button.active{color:#222!important}
+html .inline-modes .flag-options kbd{margin-left:0}
+html .inline-modes .octave-options{grid-template-columns:44px 112px 56px 112px;gap:0;max-width:100%;justify-content:start}
+html .inline-modes .octave-options>span:first-child{text-align:left;font-size:12px}
+html .inline-modes .octave-options button{height:42px;min-height:42px!important}
+html .inline-modes .octave-options>span{font-size:12px}
+
+html .editor.inline-modes{padding-top:0}
+.inline-modes .mode-switch{display:flex;gap:2px;flex-shrink:0;background:#f5f5f5;border-radius:5px;padding:3px}
+.mode-switch button{font-size:12px;padding:7px 10px;border-radius:3px;color:#777;white-space:nowrap}
+.mode-switch button[aria-pressed="true"]{background:#fff;color:#222;box-shadow:0 1px 3px #0001}
+.inline-modes .score-workspace{position:relative;min-height:0;padding:16px 0 0;flex:none;scrollbar-width:thin;overflow-x:hidden;overflow-y:hidden;overflow-anchor:none}
+.inline-modes .score-workspace.preview-mode{flex:1;overflow-y:auto;scrollbar-gutter:stable}
+.inline-modes .score-workspace.edit-mode{scrollbar-gutter:stable;overflow-y:hidden;flex-shrink:0}
+.workspace-row{position:relative;display:flex;height:calc(91px * var(--score-scale) + 30px);min-width:0;margin:0}
+.edit-mode .workspace-row.context{opacity:.48}
+.edit-mode .workspace-row.context:hover{opacity:.72}
+.preview-mode .workspace-row{cursor:pointer}
+.preview-mode .workspace-row.current .engraved-row{background:#fffbed}
+.preview-location{position:absolute;bottom:0;left:4px;font-size:11px;color:#888;pointer-events:none}
+.preview-mode .measure-feedback{visibility:hidden}
+.preview-end-space{height:calc(100dvh - 270px);pointer-events:none}
+html .editor.inline-modes .editing-controls{width:min(100%,660px);align-self:center;margin:12px 0 0;height:auto}
+html .editor.inline-modes .properties{height:auto;gap:12px}
+html .inline-modes .duration-options{width:100%}
+html .inline-modes .octave-options{align-items:center}
+@media(max-height:849px){html .editor.inline-modes .editing-controls{margin-top:8px}html .editor.inline-modes .properties{gap:8px}}
+@media(max-width:1100px){.inline-modes .editor-header>div{gap:5px}.inline-modes .mode-switch button{padding:7px}.inline-modes .location{gap:0}html .inline-modes .flag-options{gap:10px}html .inline-modes .flag-options button{font-size:12px}}
+/* Fixed three-row editing; no automatic collapsing or proximity effects. */
+.source-row-target::after{display:none}
+.source-row-target{border:1px solid transparent;transition:none;animation:none}
+.source-row-target:hover{border-color:#c4c4c4}
+@media(max-height:849px){
+ html .editor.inline-modes .crop{height:clamp(76px,calc(76px + (100dvh - 650px)*.2),116px)}
+ .workspace-row{height:calc(91px * var(--score-scale) + 20px)}
+ .workspace-row .engraved-row{height:100%}
+ .edit-mode .workspace-row.context .measure-feedback{visibility:hidden}
+}
+
+/* Keep the original source header; shift the complete editor down to align centers. */
+html .editor.inline-modes{padding-top:calc((78px - clamp(52px,calc(52px + (100dvh - 650px)*.08),80px))/2)}
+@media(min-width:1550px){html .editor.inline-modes{padding-top:calc((100px - clamp(52px,calc(52px + (100dvh - 650px)*.08),80px))/2)}}
+
+/* Arc height belongs to each row, including context and preview rows. */
+.workspace-row{height:auto;min-height:calc(91px * var(--score-scale) + 30px);flex-shrink:0}
+.workspace-row .engraved-row{height:auto}
+.row-connections .arc-hit:focus-visible{stroke:#a57b1255;outline:none}
+.arc-edit-controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:5px 0}
+.arc-edit-controls button{padding:5px 9px;border-radius:4px;border:1px solid #ddd}
+.arc-edit-controls span{color:#805d0b}
+
+.inline-modes .score-workspace.edit-mode{flex:1;min-height:140px;overflow-y:auto;flex-shrink:1}
+
+/* Both editing modes share a viewport budget; opening fields never resizes it. */
+html .editor.inline-modes .editing-controls{position:relative;width:min(100%,920px);height:188px;flex:0 0 188px;margin:12px 0 0;overflow:visible}
+html .editor.inline-modes .properties,html .editor.inline-modes .connection-panel{height:100%;display:grid;grid-template-rows:54px 54px 44px;gap:12px;align-content:start;overflow-x:auto;overflow-y:hidden;padding-bottom:6px}
+html .inline-modes .duration-options{max-width:660px;min-width:440px}
+html .inline-modes .flag-options{display:flex;flex-wrap:nowrap;gap:12px;min-width:max-content;align-items:center}
+html .inline-modes .flag-options::before{width:32px}
+html .inline-modes .flag-options button{flex-shrink:0;font-size:12px}
+.meter-option{display:flex;align-items:center;gap:10px;white-space:nowrap}
+html .inline-modes .local-meter-fields{position:relative;display:flex;flex-wrap:nowrap;gap:6px;margin:0;font-size:12px;height:36px}
+html .inline-modes .local-meter-fields>input,html .inline-modes .local-meter-fields>select{box-sizing:border-box;width:48px;height:34px;padding:4px 6px;border:1px solid #ccc;border-radius:4px;background:#fff;text-align:center;caret-color:auto;user-select:text}
+html .inline-modes .local-meter-fields>input[aria-invalid=true]{border-color:#b3322b}
+.local-meter-fields label{white-space:nowrap;margin-left:4px}
+.meter-error{position:absolute;top:100%;left:0;font-size:11px;line-height:18px;color:#a8322b;white-space:nowrap}
+html .inline-modes .octave-options{min-width:380px}
+html .editor.inline-modes .connection-panel{grid-template-rows:54px 54px 44px}
+.connection-panel .arc-edit-controls{flex-wrap:nowrap;gap:10px;padding:0;white-space:nowrap;min-width:max-content;font-size:12px}
+.connection-panel .arc-edit-controls>span{color:#666}
+.connection-panel .arc-edit-controls button{height:34px;padding:6px 10px;background:white;white-space:nowrap}
+.connection-panel .arc-edit-controls button:first-of-type{background:#262626;color:white;border-color:#262626}
+.connection-panel .connection-number{display:flex;flex-wrap:nowrap;margin:0;gap:12px;min-width:550px}
+.connection-panel .connection-numbers{display:grid;grid-template-columns:64px repeat(8,44px);gap:6px}
+.connection-panel .connection-numbers button{height:44px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:0;padding:3px;border:1px solid #ddd;border-radius:4px;background:white}
+.connection-panel .connection-numbers kbd{margin:0;font-size:10px}
+.connection-panel .connection-numbers button.active{background:#fff1bf;border-color:#c8a343;color:#795914}
+.connection-ratio{display:flex;align-items:center;gap:12px;white-space:nowrap;font-size:12px}
+.connection-ratio label{display:flex;gap:8px;align-items:center}
+.connection-ratio input{width:54px;height:34px;border:1px solid #ccc;border-radius:4px;text-align:center;background:white}
+.connection-hint{color:#8b680d;font-size:12px}
+.pending-connections{position:absolute;bottom:0;right:0;font-size:11px;color:#777;z-index:3}
+.pending-connections summary{cursor:pointer}
+.pending-list{position:absolute;bottom:24px;right:0;max-height:150px;overflow:auto;background:white;border:1px solid #ddd;padding:10px;width:260px;box-shadow:0 3px 12px #0001}
+.pending-list button{padding:6px}
+@media(max-height:849px){html .editor.inline-modes .editing-controls{height:176px;flex-basis:176px;margin-top:8px}html .editor.inline-modes .properties,html .editor.inline-modes .connection-panel{gap:8px}}
+/* Keep narrow editing panes usable without changing row count on toggle. */
+.editor.inline-modes{container-name:correction-editor;container-type:inline-size}
+html .editor.inline-modes .properties,html .editor.inline-modes .connection-panel{grid-template-columns:minmax(0,1fr)}
+@container correction-editor (max-width:660px){
+ html .inline-modes .flag-options{gap:7px}
+ html .inline-modes .flag-options::before{width:24px}
+ html .inline-modes .flag-options button{font-size:11px;gap:5px}
+ html .inline-modes .flag-options button::before{width:13px;height:13px}
+ .meter-option{gap:7px}
+ html .inline-modes .local-meter-fields{gap:4px;font-size:11px}
+ html .inline-modes .local-meter-fields>input,html .inline-modes .local-meter-fields>select{width:40px;padding:4px}
+ .local-meter-fields label{gap:3px;margin-left:0}
+}

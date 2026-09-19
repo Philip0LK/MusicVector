@@ -1,0 +1,89 @@
+{
+ "performance": {
+  "syntheticNotes": 17,
+  "tieIndexes": [
+   0,
+   5,
+   8
+  ]
+ },
+ "planCases": [
+  {
+   "name": "full-default",
+   "startIndex": 0,
+   "endIndex": null,
+   "rate": 1
+  },
+  {
+   "name": "from-first-sounding",
+   "startIndex": 18,
+   "endIndex": null,
+   "rate": 1
+  },
+  {
+   "name": "range-4-30",
+   "startIndex": 4,
+   "endIndex": 30,
+   "rate": 1
+  },
+  {
+   "name": "single-note-18",
+   "startIndex": 18,
+   "endIndex": 18,
+   "rate": 1.25
+  },
+  {
+   "name": "slow-0.5",
+   "startIndex": 18,
+   "endIndex": 60,
+   "rate": 0.5
+  },
+  {
+   "name": "fast-1.1",
+   "startIndex": 100,
+   "endIndex": 140,
+   "rate": 1.1
+  },
+  {
+   "name": "bpm-60",
+   "startIndex": 40,
+   "endIndex": 90,
+   "rate": 1,
+   "bpm": 60
+  },
+  {
+   "name": "bpm-120-rate-0.9",
+   "startIndex": 200,
+   "endIndex": 260,
+   "rate": 0.9,
+   "bpm": 120
+  }
+ ],
+ "keyCases": [
+  {
+   "key": "E",
+   "octave": 4
+  },
+  {
+   "key": "C",
+   "octave": 4
+  },
+  {
+   "key": "G",
+   "octave": 3
+  },
+  {
+   "key": "F#",
+   "octave": 5
+  },
+  {
+   "key": "Bb",
+   "octave": 3
+  }
+ ],
+ "cropCases": [
+  "band-jpeg-1500x2000",
+  "band-wide-2400x1400",
+  "box-v2"
+ ]
+}

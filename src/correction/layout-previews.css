@@ -1,0 +1,22 @@
+/* Opt-in A/B previews. Default layout is deliberately untouched. */
+html[data-layout-preview] .editor .editing-controls{height:auto;margin-top:24px}
+html[data-layout-preview] .editor .properties{display:flex;height:auto;gap:18px}
+html[data-layout-preview] .editor .properties button{font-size:13px;padding:8px 12px;min-height:44px!important}
+html[data-layout-preview] .duration-options{width:min(100%,660px);grid-template-columns:44px repeat(5,minmax(0,1fr));gap:0;align-items:center}
+html[data-layout-preview] .duration-options::before{content:"时值";font-size:12px;color:#777}
+html[data-layout-preview] .duration-options button{height:54px;border-radius:0;border-right-width:0}
+html[data-layout-preview] .duration-options button:first-of-type{border-radius:5px 0 0 5px}
+html[data-layout-preview] .duration-options button:last-of-type{border-radius:0 5px 5px 0;border-right-width:1px}
+html[data-layout-preview] .flag-options{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+html[data-layout-preview] .flag-options::before{content:"标记";font-size:12px;color:#777;width:26px;flex-shrink:0}
+html[data-layout-preview] .flag-options button{border:0;background:none!important;color:#555!important;gap:8px;padding:4px 0!important;min-height:36px!important}
+html[data-layout-preview] .flag-options button::before{content:"";width:15px;height:15px;flex:none;border:1px solid #bbb;border-radius:3px}
+html[data-layout-preview] .flag-options button.active::before{content:"✓";background:#292929;border-color:#292929;color:white;font-size:12px;line-height:15px}
+html[data-layout-preview] .flag-options button.active{color:#222!important}
+html[data-layout-preview] .flag-options kbd{margin-left:0}
+html[data-layout-preview] .octave-options{grid-template-columns:44px 112px 56px 112px;gap:0;max-width:100%;justify-content:start}
+html[data-layout-preview] .octave-options>span:first-child{text-align:left;font-size:12px}
+html[data-layout-preview] .octave-options button{height:42px;min-height:42px!important}
+html[data-layout-preview] .octave-options>span{font-size:12px}
+html[data-layout-preview="B"] .editor{padding-top:clamp(0px,calc((100dvh - 800px)*.2),64px)}
+@media(max-width:1100px){html[data-layout-preview] .flag-options{gap:12px}html[data-layout-preview] .editor .properties button{font-size:12px;padding:7px}}

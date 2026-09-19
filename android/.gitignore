@@ -1,0 +1,16 @@
+# 手机端练习 App 的构建产物与本地工具链引用
+.tooling/
+.gradle/
+build/
+local.properties
+.idea/
+*.iml
+/captures
+.externalNativeBuild
+.cxx
+.kotlin/
+
+# 正式签名：密钥库与口令绝不入库
+keystore.properties
+*.jks
+*.keystore

@@ -1,0 +1,34 @@
+# 个人与本机内容：这些目录不会进仓库
+local/
+data/
+private/
+releases/
+runtime/
+qa/
+
+# 个人曲谱生成的 Android 夹具（由 tools/mobile-fixtures.mjs 在本机生成）
+android/app/src/test/resources/fixtures/salon.json
+
+# 依赖与构建产物
+node_modules/
+dist/
+build/
+__pycache__/
+*.pyc
+android/.gradle/
+android/.kotlin/
+android/build/
+android/app/build/
+android/local.properties
+
+# 签名与密钥，绝不入库
+keystore.properties
+*.jks
+*.keystore
+.env
+.env.*
+
+# 系统与编辑器
+.DS_Store
+Thumbs.db
+*.log
