@@ -23,7 +23,7 @@ The desktop download needs no separate runtime — it is all bundled. Unzip it i
 
 1. Double-click **`启动.cmd`** ("Start"). A console window flashes and closes on its own; your browser opens MusicVector and the service keeps running in the background.
 2. Click **新建歌曲** ("New song") and upload score photos: one page per image, as many pages as you like. Images only (PNG / JPEG / WebP) — convert PDFs to images first.
-3. Open **设置** ("Settings") once, enter your model API key and verify it. Recognition calls a vision model online; the key is encrypted for the current Windows user and stored on this machine only, so you enter it again on another computer.
+3. Open **设置** ("Settings") once, enter your model API key and verify it — **Qwen (通义千问) is the recommended choice**, see the FAQ below. Recognition calls a vision model online; the key is encrypted for the current Windows user and stored on this machine only, so you enter it again on another computer.
 4. Click **开始识别** ("Start recognition"). Each page is split into staff lines and recognised line by line. Results are saved before they are returned, so nothing is lost if the computer is switched off mid-way.
 5. Recognition is never perfectly accurate — fix what is wrong in **修正乐谱** ("Correct score") and save.
 6. Back on the practice page, click any note to start practising from there.
@@ -86,7 +86,7 @@ data/
 
 **Does it work offline?** Practising, playback and phone transfer do, as long as phone and computer share a Wi-Fi network. Only recognition needs the internet.
 
-**Can I use a different model?** Yes. Settings offers Kimi, Zhipu GLM, DeepSeek and Qwen, the endpoint can be changed, and other OpenAI-compatible services work as well.
+**Which model should I use?** **Qwen (通义千问)** is recommended: the recognition prompt, the page slicing and the request concurrency were all calibrated against Qwen in testing, so it is the combination that has actually been measured. Settings also offers Kimi, Zhipu GLM and DeepSeek, the endpoint can be changed, and other OpenAI-compatible services work too — they simply have not been validated to the same degree.
 
 ## License and credits
 
