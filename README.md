@@ -1,6 +1,6 @@
-# MusicVector · 乐北斗
+English | [中文](README.zh-CN.md)
 
-English | [中文速览](#中文速览)
+# MusicVector · 乐北斗
 
 **Turn photos of numbered notation into practice pieces you can follow note by note.**
 
@@ -22,10 +22,10 @@ The desktop download needs no separate runtime — it is all bundled. Unzip it i
 ## Getting started
 
 1. Double-click **`启动.cmd`** ("Start"). A console window flashes and closes on its own; your browser opens MusicVector and the service keeps running in the background.
-2. Click **New song** and upload score photos: one page per image, as many pages as you like. Images only (PNG / JPEG / WebP) — convert PDFs to images first.
-3. Open **Settings** once, enter your model API key and verify it. Recognition calls a vision model online; the key is encrypted for the current Windows user and stored on this machine only, so you enter it again on another computer.
-4. Click **Start recognition**. Each page is split into staff lines and recognised line by line. Results are saved before they are returned, so nothing is lost if the computer is switched off mid-way.
-5. Recognition is never perfectly accurate — fix what is wrong in **Correct score** ("修正乐谱") and save.
+2. Click **新建歌曲** ("New song") and upload score photos: one page per image, as many pages as you like. Images only (PNG / JPEG / WebP) — convert PDFs to images first.
+3. Open **设置** ("Settings") once, enter your model API key and verify it. Recognition calls a vision model online; the key is encrypted for the current Windows user and stored on this machine only, so you enter it again on another computer.
+4. Click **开始识别** ("Start recognition"). Each page is split into staff lines and recognised line by line. Results are saved before they are returned, so nothing is lost if the computer is switched off mid-way.
+5. Recognition is never perfectly accurate — fix what is wrong in **修正乐谱** ("Correct score") and save.
 6. Back on the practice page, click any note to start practising from there.
 
 Double-click **`停止.cmd`** ("Stop") when you are done. Closing the browser does **not** stop the background service.
@@ -44,7 +44,7 @@ The phone app does three things only: scan to receive a song, open a received so
 
 1. Phone and computer on the **same Wi-Fi**.
 2. Copy `乐北斗.apk` to the phone and install it.
-3. Open a song on the computer and click **Send to phone** ("发送到手机") to the right of the time signature — a QR code appears.
+3. Open a song on the computer and click **发送到手机** ("Send to phone") to the right of the time signature — a QR code appears.
 4. Scan the code with the phone app and the song is transferred, so you can practise without the computer afterwards.
 
 Worth knowing:
@@ -94,12 +94,17 @@ data/
 - The bundled piano sound is Salamander Grand Piano V3, licensed CC BY 3.0.
 - Sources and licences of the bundled runtime and open-source libraries are listed in `THIRD_PARTY_NOTICES.md`.
 
-## 中文速览
+## Documentation
 
-乐北斗 MusicVector：把简谱照片变成可以逐音跟练的练习曲。识别出音高和节奏后，用真实钢琴音色按准确时值演奏，可以只听某一段、循环那一小段、放慢速度。曲目和练习记录都保存在你自己的电脑上，不上传，也不需要账号。
+Every document is available in Chinese and English.
 
-- **下载**：在本仓库 **Releases** 页面下载 `MusicVector-1.0-windows-x64.zip`（电脑端，已自带运行环境）或 `MusicVector-1.0-android.apk`（手机端，安卓 8.0 及以上）。解压到**可以写入**的目录，不要直接在压缩包里运行。
-- **开始**：双击 `启动.cmd` → 新建歌曲、上传乐谱照片 → 在设置里填模型密钥并验证 → 开始识别 → 用「修正乐谱」改错 → 回训练页点任意一个音开始练。用完双击 `停止.cmd`（关闭浏览器不会停止服务）。
-- **手机端**：手机与电脑连同一个 Wi-Fi，电脑上打开曲目后点「发送到手机」出现二维码，手机扫码接收，二维码十分钟内有效。手机端只能收曲目、打开和删除，改谱仍在电脑上做。
-- **数据与网络**：全部内容都在程序目录的 `data` 文件夹里，停止程序后整体复制走就是完整备份；识别需要联网，练习和播放不需要。
-- **许可**：MIT；内置钢琴音色为 Salamander Grand Piano V3（CC BY 3.0）。
+| Document | Chinese | English |
+|---|---|---|
+| This README | [README.zh-CN.md](README.zh-CN.md) | this file |
+| User guide (shipped inside the download) | [使用说明.md](使用说明.md) | [使用说明.en.md](使用说明.en.md) |
+| Development notes | [DEVELOPMENT.md](DEVELOPMENT.md) | [DEVELOPMENT.en.md](DEVELOPMENT.en.md) |
+| Recognition spec (prompt and symbols) | [AI-RECOGNITION-SOP.md](AI-RECOGNITION-SOP.md) | [AI-RECOGNITION-SOP.en.md](AI-RECOGNITION-SOP.en.md) |
+| Android app notes | [android/README.md](android/README.md) | [android/README.en.md](android/README.en.md) |
+| Score slicing pipeline | [python/SCORE-SLICING.md](python/SCORE-SLICING.md) | [python/SCORE-SLICING.en.md](python/SCORE-SLICING.en.md) |
+| Symbol baseline | [python/SYMBOL-BASELINE.md](python/SYMBOL-BASELINE.md) | [python/SYMBOL-BASELINE.en.md](python/SYMBOL-BASELINE.en.md) |
+| Third-party notices | [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) | [THIRD_PARTY_NOTICES.en.md](THIRD_PARTY_NOTICES.en.md) |

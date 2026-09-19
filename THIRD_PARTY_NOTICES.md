@@ -1,3 +1,5 @@
+[English](THIRD_PARTY_NOTICES.en.md) | 中文
+
 # 第三方资源声明
 
 ## Salamander Grand Piano V3

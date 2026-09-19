@@ -70,7 +70,14 @@ await fs.copyFile(apk, path.join(target, '手机端/乐北斗.apk'));
 await fs.writeFile(path.join(target, '手机端/安装手机端.cmd'), '@echo off\r\nchcp 65001 >nul\r\ntitle 乐北斗\r\n"%~dp0..\\runtime\\adb\\adb.exe" install -r "%~dp0乐北斗.apk"\r\npause\r\n');
 await fs.writeFile(path.join(target, '启动.cmd'), '@echo off\r\nchcp 65001 >nul\r\ntitle 乐北斗\r\n"%~dp0runtime\\node\\node.exe" "%~dp0app\\launch.cjs"\r\nif errorlevel 1 pause\r\n');
 await fs.writeFile(path.join(target, '停止.cmd'), '@echo off\r\nchcp 65001 >nul\r\ntitle 乐北斗\r\n"%~dp0runtime\\node\\node.exe" "%~dp0app\\server\\server.mjs" --home "%~dp0." --stop\r\nif errorlevel 1 pause\r\n');
-for (const name of ['使用说明.md', 'THIRD_PARTY_NOTICES.md']) await fs.copyFile(name, path.join(target, name));
+// 说明书与第三方声明：中文、英文两版一起随包发布（缺哪版就跳过哪版）
+for (const name of ['使用说明.md', '使用说明.en.md', 'THIRD_PARTY_NOTICES.md', 'THIRD_PARTY_NOTICES.en.md']) {
+  if (!(await fs.access(name).then(() => true, () => false))) {
+    console.warn('跳过缺失的文档：' + name);
+    continue;
+  }
+  await fs.copyFile(name, path.join(target, name));
+}
 
 const data = path.join(target, 'data');
 if (personalData) {

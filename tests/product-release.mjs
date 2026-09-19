@@ -41,6 +41,10 @@ try {
     }
     const notice = await fs.readFile(path.join(home, 'THIRD_PARTY_NOTICES.md'), 'utf8');
     for (const section of ['随包运行环境', 'Android 应用', 'licenses/mobile']) assert.ok(notice.includes(section), '第三方通告缺少「' + section + '」');
+    // 说明书与通告都要求中英两版同时随包，少一版就等于漏发。
+    for (const doc of ['使用说明.md', '使用说明.en.md', 'THIRD_PARTY_NOTICES.md', 'THIRD_PARTY_NOTICES.en.md']) {
+      assert.ok(await fs.stat(path.join(home, doc)).then(() => true, () => false), '发行包缺少 ' + doc);
+    }
     const result = await exec('C:\\Windows\\System32\\cmd.exe', ['/d', '/c', '启动.cmd'], {cwd: home, env, timeout: 45000, windowsHide: true});
     const info = JSON.parse(await fs.readFile(path.join(home, 'data/.instance.json'), 'utf8'));
     infos.push(info);

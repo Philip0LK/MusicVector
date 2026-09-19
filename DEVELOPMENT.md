@@ -1,3 +1,5 @@
+[English](DEVELOPMENT.en.md) | 中文
+
 # 开发说明
 
 面向改这个仓库的人。第一次使用产品的说明在 [README.md](./README.md)。

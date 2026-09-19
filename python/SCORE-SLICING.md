@@ -1,3 +1,5 @@
+[English](SCORE-SLICING.en.md) | 中文
+
 # 整行简谱＋歌词切片实验
 
 ## 运行
