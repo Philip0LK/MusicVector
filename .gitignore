@@ -32,3 +32,25 @@ keystore.properties
 .DS_Store
 Thumbs.db
 *.log
+
+# 办公文档与本机文稿（Markdown 除外，.md 一律照常入库）
+*.xlsx
+*.xls
+*.xlsm
+*.xlsb
+*.doc
+*.docx
+*.docm
+*.dotx
+*.ppt
+*.pptx
+*.ppsx
+*.odt
+*.ods
+*.odp
+*.rtf
+*.wps
+*.et
+*.dps
+~$*
+.~lock.*
