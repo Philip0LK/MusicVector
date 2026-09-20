@@ -2,6 +2,7 @@ package com.yuebeidou.player
 
 import com.yuebeidou.player.audio.PianoPlayer
 import com.yuebeidou.player.handoff.HandoffClient
+import com.yuebeidou.player.score.CropGeometry
 import com.yuebeidou.player.ui.PracticeRules
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
@@ -25,6 +26,20 @@ class RulesAndParsingTest {
         assertEquals(3, PracticeRules.nextIndex(6, 1, 10, 3..6))
         assertEquals(6, PracticeRules.nextIndex(3, -1, 10, 3..6))
         assertEquals(5, PracticeRules.nextIndex(4, 1, 10, 3..6))
+    }
+
+    @Test
+    fun `原谱条带按屏宽铺满时高度由图片比例决定`() {
+        // 铺满：高度 = 屏宽 ÷ 宽高比。12:1 的谱行在 2340px 宽的屏上正好 195px。
+        assertEquals(195f, CropGeometry.bandHeightPx(12.0, 2340f, 121f), 0.01f)
+        // 更宽的谱行条带更矮；更窄的更高，但都不会退回退路高度。
+        assertTrue(CropGeometry.bandHeightPx(20.0, 2340f, 121f) < 195f)
+        assertTrue(CropGeometry.bandHeightPx(6.0, 2340f, 121f) > 195f)
+        // 比例缺失或退化时用退路高度，绝不返回非正高度（否则整行会消失）。
+        assertEquals(121f, CropGeometry.bandHeightPx(0.0, 2340f, 121f), 0.01f)
+        assertEquals(121f, CropGeometry.bandHeightPx(Double.NaN, 2340f, 121f), 0.01f)
+        assertEquals(121f, CropGeometry.bandHeightPx(-4.0, 2340f, 121f), 0.01f)
+        assertEquals(121f, CropGeometry.bandHeightPx(12.0, 0f, 121f), 0.01f)
     }
 
     @Test

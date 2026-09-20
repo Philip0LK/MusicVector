@@ -30,6 +30,13 @@ If you cannot connect, troubleshoot in this order:
 
 Landscape. At the top are the song title, `1=E4` (the reference register) and the time signature, with settings at the top right; in the middle is the whole song in a continuous scroll, with the **original score image on the top line and the jianpu on the bottom line**; at the bottom is the playback bar.
 
+The original-score band fills the full screen width: its height comes from the crop's own aspect ratio (it is not
+fixed), so the image and the jianpu share the same left and right edges. The band used to be a fixed 44 dp tall with
+the image fitted by height, which left it centred over roughly half the screen width and visually misaligned with the
+full-width jianpu line. The cost is more upscaling for low-resolution pages (Android's bilinear filter): a 1440 px wide
+page is enlarged about 1.6x with little visible loss, while a 710 px wide page needs 3.3x and looks noticeably soft —
+re-import those pages at a higher resolution.
+
 Playback behaviour, matched item by item against the desktop side:
 
 | Desktop side | Phone side |

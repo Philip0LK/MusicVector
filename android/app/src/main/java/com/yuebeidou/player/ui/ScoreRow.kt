@@ -5,6 +5,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -56,10 +57,17 @@ private val SEPARATOR = Color(0xFFE8E8E4)
 
 /** 24 单位空间的纵向尺寸，与电脑端 SVG 的 viewBox 高度一致。 */
 private const val MEASURE_UNIT_HEIGHT = 91f
+
+/** 图片比例无法计算时的退路高度；正常情况下条带高度由图片自身比例决定。 */
 private const val BAND_HEIGHT_DP = 44
 
 /**
  * 一行谱：上面是原谱裁切图片带，下面是简谱。
+ *
+ * 条带按屏宽铺满：高度由裁切图自身比例算出来，不再固定 44dp。
+ * 固定高度时图片只能按高度装进去，横向只占屏宽的一半左右并居中，
+ * 与铺满整行的简谱对不齐；铺满后两者共用同一条左右边界。
+ * 代价是原图分辨率低的页面会被放大得更多（放大由 Android 的双线性插值完成）。
  *
  * 排版数字来自 EngraveGeometry（与电脑端 lib/engraveGeometry.js 同源），
  * 绘制坐标沿用电脑端 SVG 的同一套数值（24 单位空间 × scale）。
@@ -91,13 +99,42 @@ fun ScoreRowItem(
 
 @Composable
 private fun ImageBand(image: ImageBitmap?, row: RowInfo) {
-    Box(Modifier.fillMaxWidth().height(BAND_HEIGHT_DP.dp).background(BAND_BACKGROUND)) {
-        if (image == null) return@Box
-        Canvas(Modifier.fillMaxWidth().height(BAND_HEIGHT_DP.dp)) {
+    BoxWithConstraints(Modifier.fillMaxWidth().background(BAND_BACKGROUND)) {
+        if (image == null) {
+            Box(Modifier.fillMaxWidth().height(BAND_HEIGHT_DP.dp))
+            return@BoxWithConstraints
+        }
+        val density = LocalDensity.current
+        val widthPx = with(density) { maxWidth.toPx() }
+        // 按屏宽铺满：条带高度 = 屏宽 ÷ 裁切图宽高比，图片与简谱因此左右对齐。
+        val bandHeight = remember(image, row.index, widthPx) {
+            val aspect = bandAspect(image, row)
+            with(density) { CropGeometry.bandHeightPx(aspect.toDouble(), widthPx, BAND_HEIGHT_DP.dp.toPx()).toDp() }
+        }
+        Canvas(Modifier.fillMaxWidth().height(bandHeight)) {
             drawBandImage(image, row)
             drawLine(SEPARATOR, Offset(0f, size.height - 1f), Offset(size.width, size.height - 1f), 1f)
         }
     }
+}
+
+/** 裁切区域自身的宽高比；取数与 drawBandImage 完全一致，保证条带高度刚好装下整幅裁切图。 */
+private fun bandAspect(image: ImageBitmap, row: RowInfo): Float {
+    val naturalWidth = image.width.toFloat()
+    val naturalHeight = image.height.toFloat()
+    if (naturalWidth <= 0f || naturalHeight <= 0f) return 0f
+    if (row.crop.kind == "rectified" && row.crop.fromOriginal.size >= 9 &&
+        row.crop.rectifiedWidth > 0.0 && row.crop.rectifiedHeight > 0.0
+    ) {
+        val width = row.crop.rectifiedRect.width * row.crop.rectifiedWidth
+        val height = row.crop.rectifiedRect.height * row.crop.rectifiedHeight
+        if (width > 0.0 && height > 0.0) return (width / height).toFloat()
+    }
+    val box = CropGeometry.rect(row.crop, naturalWidth.toDouble(), naturalHeight.toDouble())
+    val width = (box.width * naturalWidth).toFloat()
+    val height = ((box.bottom - box.top) * naturalWidth).toFloat()
+    if (width <= 0f || height <= 0f) return 0f
+    return width / height
 }
 
 private fun DrawScope.drawBandImage(image: ImageBitmap, row: RowInfo) {
