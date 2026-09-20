@@ -1,4 +1,4 @@
-// 便携包验收：把 releases/乐北斗 复制两份，用随包运行环境（PATH 里只剩 System32）真实启动，
+// 便携包验收：把 releases/MusicVector 复制两份，用随包运行环境（PATH 里只剩 System32）真实启动，
 // 检查端口自动错开、重复启动不增开实例、接口隔离、空库可直接上传识别、重启后数据保留。
 //
 //   npm run build && node tools/package.mjs --refresh && npm run test:release
@@ -19,7 +19,7 @@ const env = {...process.env, PATH: 'C:\\Windows\\System32', YUEBEIDOU_NO_OPEN: '
 const homes = [];
 const infos = [];
 let browser;
-// 发行包不再提供 .cmd 启动器：按使用说明里的命令行方式启动与停止。
+// 发行包不再提供 .cmd 启动器：按 USER-GUIDE.zh-CN.md 里的命令行方式启动与停止。
 const NODE = 'runtime\\node\\node.exe';
 const startCommand = NODE + ' app\\launch.cjs';
 const stopCommand = NODE + ' app\\server\\server.mjs --home . --stop';
@@ -38,7 +38,7 @@ try {
   // 同一份发行包复制两份，用来验证两份同时运行时的端口错开与数据隔离。
   for (const name of ['甲', '乙']) {
     const home = path.join(area, '乐北斗 ' + name);
-    await fs.cp(path.join(root, 'releases', '乐北斗'), home, {recursive: true});
+    await fs.cp(path.join(root, 'releases', 'MusicVector'), home, {recursive: true});
     homes.push(home);
     // 许可必须真的随包：曾经因为只核对了源码里的许可文件、没人看发行目录，漏检过缺失的许可。
     for (const need of ['licenses/mobile/Apache-2.0.txt', 'licenses/mobile/zxing-android-embedded-COPYING.txt', 'runtime/adb/NOTICE.txt', 'runtime/node/LICENSE', 'runtime/python/LICENSE.txt']) {
@@ -47,12 +47,15 @@ try {
     const notice = await fs.readFile(path.join(home, 'THIRD_PARTY_NOTICES.md'), 'utf8');
     for (const section of ['随包运行环境', 'Android 应用', 'licenses/mobile']) assert.ok(notice.includes(section), '第三方通告缺少「' + section + '」');
     // 说明书与通告都要求中英两版同时随包，少一版就等于漏发。
-    for (const doc of ['使用说明.md', '使用说明.en.md', 'THIRD_PARTY_NOTICES.md', 'THIRD_PARTY_NOTICES.en.md']) {
+    for (const doc of ['USER-GUIDE.zh-CN.md', 'USER-GUIDE.md', 'THIRD_PARTY_NOTICES.md', 'THIRD_PARTY_NOTICES.en.md']) {
       assert.ok(await fs.stat(path.join(home, doc)).then(() => true, () => false), '发行包缺少 ' + doc);
     }
-    // 包里不再放任何 .cmd 启动器：启动与停止一律由命令行完成（命令见 使用说明.md）。
-    for (const gone of ['启动.cmd', '停止.cmd']) {
+    // 包里不放任何 .cmd，手机端目录只放 APK，命名一律英文（命令与目录说明见 USER-GUIDE.zh-CN.md）。
+    for (const gone of ['启动.cmd', '停止.cmd', '手机端', '发行清单.json']) {
       assert.ok(!(await fs.stat(path.join(home, gone)).then(() => true, () => false)), '发行包不该再包含 ' + gone);
+    }
+    for (const need of ['Android/MusicVector.apk', 'manifest.json']) {
+      assert.ok(await fs.stat(path.join(home, need)).then(() => true, () => false), '发行包缺少 ' + need);
     }
     const result = await runIn(home, startCommand);
     const info = JSON.parse(await fs.readFile(path.join(home, 'data/.instance.json'), 'utf8'));

@@ -1,4 +1,4 @@
-English | [中文](使用说明.md)
+English | [中文](USER-GUIDE.zh-CN.md)
 
 # 乐北斗 (MusicVector)
 
@@ -32,7 +32,7 @@ Backup: stop the program, then copy the whole `data` folder to a safe place. Res
 
 ## Phone app
 
-Install `手机端/乐北斗.apk` on your phone. If an Android phone already has the app, is connected over USB and allows USB debugging, it opens together with the start command — the app is never installed or overwritten automatically. For a first USB install, run `手机端/安装手机端.cmd` ("Install phone app") with exactly one authorised phone connected. Leaving the phone unplugged does not affect use on the computer.
+Install `Android/MusicVector.apk` on your phone. If an Android phone already has the app, is connected over USB and allows USB debugging, it opens together with the start command — the app is never installed or overwritten automatically. Leaving the phone unplugged does not affect use on the computer.
 
 On the computer, click **发送到手机** ("Send to phone") and scan the QR code with the phone app. The phone and computer should be on the same Wi-Fi network; if Windows Firewall asks, allow access on trusted private networks only. The QR code is valid for ten minutes, and closing the send panel releases it; only this one temporary song can be collected, and neither your library nor your key is reachable from the local network. If there is a port conflict the program switches ports automatically — use the QR code generated this time.
 
@@ -42,4 +42,4 @@ Recognition still needs an internet connection to call the model, and you must v
 
 The latest playback duration adjustments are kept on both desktop and phone: the sound envelope closes within each note's actual duration, and single-note preview on the phone keeps the full sample. The editor supports inline time-signature changes, a dedicated tool area for ties, and deleting a slur directly with `W` after selecting its starting point.
 
-Runtime logs are in `data/logs/startup.log`. At present only a Windows x64 portable package is provided; the phone app requires Android 8.0 or later, and the installer is in the `手机端` folder.
+Runtime logs are in `data/logs/startup.log`. At present only a Windows x64 portable package is provided; the phone app requires Android 8.0 or later, and the installer is in the `Android` folder.

@@ -1,7 +1,7 @@
 // 打出可分发的 Windows 便携包。
 //
-//   node tools/package.mjs                       → releases/乐北斗        （空库，供公开分发）
-//   node tools/package.mjs --with-data <目录>     → releases/乐北斗－自用   （带你自己的曲库，只在本机用）
+//   node tools/package.mjs                       → releases/MusicVector          （空库，供公开分发）
+//   node tools/package.mjs --with-data <目录>     → releases/MusicVector-personal （带你自己的曲库，只在本机用）
 //   --refresh                                    先删除同名发行目录再重建
 //   --runtime <目录>                             指定自带运行环境（默认 runtime/）
 //
@@ -23,8 +23,8 @@ const arg = (name) => {
 const output = path.join(root, 'releases');
 const runtime = path.resolve(arg('--runtime') ?? 'runtime');
 const personalData = arg('--with-data') ? path.resolve(arg('--with-data')) : null;
-const edition = personalData ? '自用' : '公开版';
-const target = path.join(output, personalData ? '乐北斗－自用' : '乐北斗');
+const edition = personalData ? 'personal' : 'public';
+const target = path.join(output, personalData ? 'MusicVector-personal' : 'MusicVector');
 
 const APK_CANDIDATES = [
   'android/app/build/outputs/apk/release/app-release.apk',
@@ -65,12 +65,11 @@ for (const file of ['score_geometry.py', 'score_layout.py', 'score_pixels.py', '
 await fs.copyFile('tools/launch.cjs', path.join(app, 'launch.cjs'));
 
 await fs.cp(runtime, path.join(target, 'runtime'), {recursive: true, filter: (f) => !f.includes('__pycache__') && !f.endsWith('.pyc')});
-await fs.mkdir(path.join(target, '手机端'), {recursive: true});
-await fs.copyFile(apk, path.join(target, '手机端/乐北斗.apk'));
-await fs.writeFile(path.join(target, '手机端/安装手机端.cmd'), '@echo off\r\nchcp 65001 >nul\r\ntitle 乐北斗\r\n"%~dp0..\\runtime\\adb\\adb.exe" install -r "%~dp0乐北斗.apk"\r\npause\r\n');
-// 不生成任何 .cmd 启动器：用户在包目录打开命令行，直接输入命令运行（启动/停止命令见 使用说明.md）。
+await fs.mkdir(path.join(target, 'Android'), {recursive: true});
+await fs.copyFile(apk, path.join(target, 'Android/MusicVector.apk'));
+// 不生成任何 .cmd：用户在包目录打开命令行运行命令（见 USER-GUIDE.zh-CN.md）；Android 目录里只放 APK。
 // 说明书与第三方声明：中文、英文两版一起随包发布（缺哪版就跳过哪版）
-for (const name of ['使用说明.md', '使用说明.en.md', 'THIRD_PARTY_NOTICES.md', 'THIRD_PARTY_NOTICES.en.md']) {
+for (const name of ['USER-GUIDE.zh-CN.md', 'USER-GUIDE.md', 'THIRD_PARTY_NOTICES.md', 'THIRD_PARTY_NOTICES.en.md']) {
   if (!(await fs.access(name).then(() => true, () => false))) {
     console.warn('跳过缺失的文档：' + name);
     continue;
@@ -121,8 +120,8 @@ const walk = async (dir) => {
   }
 };
 await walk(target);
-await fs.writeFile(path.join(target, '发行清单.json'), JSON.stringify({
-  name: '乐北斗',
+await fs.writeFile(path.join(target, 'manifest.json'), JSON.stringify({
+  name: 'MusicVector',
   version: '1.0.0',
   edition,
   sourceCommit: git,

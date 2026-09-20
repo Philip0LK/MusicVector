@@ -55,8 +55,8 @@ cd android
 
 ```bash
 npm run build
-node tools/package.mjs --refresh                     # releases/乐北斗 (empty library, for distribution)
-node tools/package.mjs --refresh --with-data <folder>   # releases/乐北斗－自用 (with the specified library)
+node tools/package.mjs --refresh                     # releases/MusicVector (empty library, for distribution)
+node tools/package.mjs --refresh --with-data <folder>   # releases/MusicVector-personal (with the specified library)
 ```
 
 Packaging requires both `runtime/` and the mobile APK (the build output under `android/`) to be present. Run this once before an official release:

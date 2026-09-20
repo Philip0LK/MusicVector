@@ -55,8 +55,8 @@ cd android
 
 ```bash
 npm run build
-node tools/package.mjs --refresh                     # releases/乐北斗（空库，供分发）
-node tools/package.mjs --refresh --with-data <目录>   # releases/乐北斗－自用（带指定曲库）
+node tools/package.mjs --refresh                     # releases/MusicVector（空库，供分发）
+node tools/package.mjs --refresh --with-data <目录>   # releases/MusicVector-personal（带指定曲库）
 ```
 
 打包要求 `runtime/` 与手机端 APK（`android/` 下构建产物）都在。正式发布前跑一次：

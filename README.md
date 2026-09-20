@@ -43,7 +43,7 @@ To stop it, run `.\runtime\node\node.exe .\app\server\server.mjs --home . --stop
 The phone app does three things only: scan to receive a song, open a received song, delete one you no longer want. It cannot edit — editing stays on the desktop.
 
 1. Phone and computer on the **same Wi-Fi**.
-2. Copy `乐北斗.apk` to the phone and install it.
+2. Copy `Android/MusicVector.apk` to the phone and install it.
 3. Open a song on the computer and click **发送到手机** ("Send to phone") to the right of the time signature — a QR code appears.
 4. Scan the code with the phone app and the song is transferred, so you can practise without the computer afterwards.
 
@@ -101,7 +101,7 @@ Every document is available in Chinese and English.
 | Document | Chinese | English |
 |---|---|---|
 | This README | [README.zh-CN.md](README.zh-CN.md) | this file |
-| User guide (shipped inside the download) | [使用说明.md](使用说明.md) | [使用说明.en.md](使用说明.en.md) |
+| User guide (shipped inside the download) | [USER-GUIDE.zh-CN.md](USER-GUIDE.zh-CN.md) | [USER-GUIDE.md](USER-GUIDE.md) |
 | Development notes | [DEVELOPMENT.md](DEVELOPMENT.md) | [DEVELOPMENT.en.md](DEVELOPMENT.en.md) |
 | Recognition spec (prompt and symbols) | [AI-RECOGNITION-SOP.md](AI-RECOGNITION-SOP.md) | [AI-RECOGNITION-SOP.en.md](AI-RECOGNITION-SOP.en.md) |
 | Android app notes | [android/README.md](android/README.md) | [android/README.en.md](android/README.en.md) |

@@ -13,5 +13,5 @@ export async function startUsbPhone(home,port){
    await run(['-s',match[1],'shell','am','start','-n','com.yuebeidou.player/.MainActivity']);
    console.log('已开启 USB 手机端');
   }
- }catch{console.log('USB 手机端未自动开启；可使用手机目录中的安装程序及同一 Wi-Fi 扫码。')}
+ }catch{console.log('USB 手机端未自动开启；可使用 Android 目录中的安装包及同一 Wi-Fi 扫码。')}
 }
