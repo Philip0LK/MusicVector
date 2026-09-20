@@ -50,8 +50,9 @@ const ignored = ignoredByGitignore();
 const files = candidates() ?? walk(root);
 const problems = [];
 const IMAGE = /\.(png|jpe?g|webp|gif|bmp|tiff?|rgba|psd|heic)$/i;
-// 只有这些位置的图片是产品自带的素材
-const ALLOWED_IMAGE = /^(public\/icons\/|public\/assets\/piano\/|android\/app\/src\/main\/res\/|android\/app\/src\/main\/assets\/)/;
+// 允许出现的图片：产品自带素材 + README 文档图（assets/readme/ 下的成图与素材，
+// 它们本来就是随 README 一起公开的；其余位置的截图仍然一律拦下）。
+const ALLOWED_IMAGE = /^(public\/icons\/|public\/assets\/piano\/|android\/app\/src\/main\/res\/|android\/app\/src\/main\/assets\/|assets\/readme\/)/;
 // 个人内容与开发产物的路径特征
 const FORBIDDEN = [/(^|\/)legacy-public\//, /(^|\/)img_data\//, /(^|\/)recognition-raw\//, /(^|\/)reports\//, /(^|\/)backups\//, /^local\//, /^data\//, /(^|\/)salon\.json$/, /(^|\/)corrected-draft\.json$/];
 const BIG = 8 * 1024 * 1024;

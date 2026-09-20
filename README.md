@@ -4,11 +4,46 @@ English | [中文](README.zh-CN.md)
 
 **Turn photos of numbered notation into practice pieces you can follow note by note.**
 
+`MIT` · `Windows x64` · `Android 8.0+` · Library stays on your machine · No account
+
+<p align="center">
+  <img src="assets/readme/hero.webp" width="100%" alt="The MusicVector practice page: the photographed numbered-notation score on the left, the recognised notation on the right, and the passage being looped marked in gold">
+</p>
+
 Upload a photo of a jianpu (numbered musical notation) score and MusicVector reads the pitches and rhythms, then plays them back on a real piano sound with exact note durations. Loop a single passage, slow it down, and practise your intonation against it.
 
-Songs, source images and practice progress stay on your own computer. Nothing is uploaded, and no account is needed.
+Songs, source images and practice progress stay on your own computer. No account is needed.
 
-## Download
+## What is on the screen
+
+<p align="center">
+  <img src="assets/readme/practice-view.webp" width="100%" alt="The whole practice page: the source score photo in the left column, the recognised numbered notation in the right column, and the selection, playback and speed controls along the bottom">
+</p>
+
+One page per song, and its two columns are the same piece seen twice:
+
+| Part of the screen | What it is |
+|---|---|
+| **Left column** | The score photo you took, zoomable, so you can compare it against the right at any time |
+| **Right column** | The recognised numbered notation. Mistakes are visible at a glance — fix them in **Correct score** and save |
+| **Gold block** | The passage currently selected; drag either gold handle to change the range |
+| **Bottom bar** | Play, play from the start, audition the current note, speed |
+
+## Fixing what recognition got wrong
+
+<p align="center">
+  <img src="assets/readme/editor.webp" width="100%" alt="The correct-score editor: the source score photo on the left, where clicking any region jumps to the matching place in the editor on the right, and the note value, mark and octave controls along the bottom">
+</p>
+
+Recognition is never perfectly accurate, so being able to edit matters as much as recognising. **Correct score** is a keyboard-first editor:
+
+- **Source on the left, editor on the right, kept in step.** Click the region in the source photo where a line went wrong and the editor jumps there — no scrolling to find it.
+- **Pitch**: edit the line's numbered-notation text directly with **修改本行音符** — `.1` for low, `1'` for high, `|` for a bar line.
+- **Duration**: five buttons from sixteenth note to whole note, or just press `1`–`5`.
+- **Marks**: dot `Q`, tie `W`, end-of-measure `E`, meter change `D`; octave up `R`, octave down `F`.
+- **Listen before you leave**: switch to **全曲预览** to hear the whole piece, then press **保存并返回训练** and practise against the corrected score straight away.
+
+## Download and first run
 
 Get the files from the **Releases** page of this repository:
 
@@ -19,28 +54,43 @@ Get the files from the **Releases** page of this repository:
 
 The desktop download needs no separate runtime — it is all bundled. Unzip it into any **writable** folder (for example `D:\MusicVector`) and run it from there, not from inside the archive.
 
-## Getting started
+1. Open a console in that folder (type `powershell` in the folder's address bar and press Enter) and run:
 
-1. Open a console in that folder (type `powershell` in the folder's address bar and press Enter) and run `.\runtime\node\node.exe .\app\launch.cjs`. Your browser opens MusicVector and the service keeps running in the background — the console window can be closed again. Running the same command later just opens the instance that is already running. (In `cmd.exe`, drop the `.\` prefixes.)
+   ```powershell
+   .\runtime\node\node.exe .\app\launch.cjs
+   ```
+
+   Your browser opens MusicVector and the service keeps running in the background — the console window can be closed again. Running the same command later just opens the instance that is already running. (In `cmd.exe`, drop the `.\` prefixes.)
+
 2. Click **新建歌曲** ("New song") and upload score photos: one page per image, as many pages as you like. Images only (PNG / JPEG / WebP) — convert PDFs to images first.
 3. Open **设置** ("Settings") once, enter your model API key and verify it — **Qwen (通义千问) is the recommended choice**, see the FAQ below. Recognition calls a vision model online; the key is encrypted for the current Windows user and stored on this machine only, so you enter it again on another computer.
-4. Click **开始识别** ("Start recognition"). Each page is split into staff lines and recognised line by line. Results are saved before they are returned, so nothing is lost if the computer is switched off mid-way.
+4. Click **开始识别** ("Start recognition"). Each page is split into staff lines and recognised line by line. Results are saved before they are returned, so nothing already recognised is lost if the computer is switched off mid-way.
 5. Recognition is never perfectly accurate — fix what is wrong in **修正乐谱** ("Correct score") and save.
 6. Back on the practice page, click any note to start practising from there.
 
-To stop it, run `.\runtime\node\node.exe .\app\server\server.mjs --home . --stop` in the same folder. Closing the browser does **not** stop the background service.
+To stop it, run this in the same folder:
+
+```powershell
+.\runtime\node\node.exe .\app\server\server.mjs --home . --stop
+```
+
+Closing the browser does **not** stop the background service.
 
 ## While practising
 
 - **Click any note** to start playback there; **select a passage** to loop only that part.
 - **Speed** offers five presets — 0.5× / 0.75× / 0.9× / 1× / 1.1× — plus fine adjustment from 0.25× to 1.25×.
 - **Every note lasts exactly its written value**: an eighth note is half a quarter note, so what you hear matches the page and the rhythm is not smeared by note tails.
-- The **original score image** sits above the **recognised notation**, and the image zooms for side-by-side comparison.
 - **Preview the current note on its own** — it plays that single note in full, which is what you want when checking intonation.
+- The original score image zooms, so you can compare it against the recognised notation line by line.
 
 ## Practising on a phone
 
 The phone app does three things only: scan to receive a song, open a received song, delete one you no longer want. It cannot edit — editing stays on the desktop.
+
+<p align="center">
+  <img src="assets/readme/phone.webp" width="100%" alt="MusicVector on a phone: the whole screen is the numbered notation with its lyrics, tappable to start from any note and draggable to loop a passage, with previous note, next note, audition, play, play from the start and speed along the bottom">
+</p>
 
 1. Phone and computer on the **same Wi-Fi**.
 2. Copy `Android/MusicVector.apk` to the phone and install it.
