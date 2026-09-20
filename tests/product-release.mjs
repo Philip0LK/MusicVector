@@ -19,6 +19,11 @@ const env = {...process.env, PATH: 'C:\\Windows\\System32', YUEBEIDOU_NO_OPEN: '
 const homes = [];
 const infos = [];
 let browser;
+// 发行包不再提供 .cmd 启动器：按使用说明里的命令行方式启动与停止。
+const NODE = 'runtime\\node\\node.exe';
+const startCommand = NODE + ' app\\launch.cjs';
+const stopCommand = NODE + ' app\\server\\server.mjs --home . --stop';
+const runIn = (home, command) => exec('C:\\Windows\\System32\\cmd.exe', ['/d', '/c', command], {cwd: home, env, timeout: 45000, windowsHide: true});
 
 async function api(info, url, method = 'GET', value) {
   const response = await fetch(info.url + url, {
@@ -45,13 +50,17 @@ try {
     for (const doc of ['使用说明.md', '使用说明.en.md', 'THIRD_PARTY_NOTICES.md', 'THIRD_PARTY_NOTICES.en.md']) {
       assert.ok(await fs.stat(path.join(home, doc)).then(() => true, () => false), '发行包缺少 ' + doc);
     }
-    const result = await exec('C:\\Windows\\System32\\cmd.exe', ['/d', '/c', '启动.cmd'], {cwd: home, env, timeout: 45000, windowsHide: true});
+    // 包里不再放任何 .cmd 启动器：启动与停止一律由命令行完成（命令见 使用说明.md）。
+    for (const gone of ['启动.cmd', '停止.cmd']) {
+      assert.ok(!(await fs.stat(path.join(home, gone)).then(() => true, () => false)), '发行包不该再包含 ' + gone);
+    }
+    const result = await runIn(home, startCommand);
     const info = JSON.parse(await fs.readFile(path.join(home, 'data/.instance.json'), 'utf8'));
     infos.push(info);
     console.log(name, info.url, result.stdout.trim());
   }
   assert.notEqual(infos[0].url, infos[1].url);
-  await exec('C:\\Windows\\System32\\cmd.exe', ['/d', '/c', '启动.cmd'], {cwd: homes[0], env, timeout: 45000, windowsHide: true});
+  await runIn(homes[0], startCommand);
   assert.equal(JSON.parse(await fs.readFile(path.join(homes[0], 'data/.instance.json'))).pid, infos[0].pid);
   assert.equal((await api(infos[0], '/api/library')).value.songs.length, 0);
   assert.equal((await api(infos[1], '/api/library')).value.songs.length, 0);
@@ -108,9 +117,9 @@ try {
   await browser.close();
   browser = null;
 
-  for (const home of homes) await exec('C:\\Windows\\System32\\cmd.exe', ['/d', '/c', '停止.cmd'], {cwd: home, env, timeout: 15000, windowsHide: true});
+  for (const home of homes) await runIn(home, stopCommand);
   await new Promise((resolve) => setTimeout(resolve, 500));
-  await exec('C:\\Windows\\System32\\cmd.exe', ['/d', '/c', '启动.cmd'], {cwd: homes[0], env, timeout: 45000, windowsHide: true});
+  await runIn(homes[0], startCommand);
   infos[0] = JSON.parse(await fs.readFile(path.join(homes[0], 'data/.instance.json')));
   assert.equal((await api(infos[0], '/api/library')).value.songs.length, 1);
 

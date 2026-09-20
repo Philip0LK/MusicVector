@@ -68,8 +68,7 @@ await fs.cp(runtime, path.join(target, 'runtime'), {recursive: true, filter: (f)
 await fs.mkdir(path.join(target, '手机端'), {recursive: true});
 await fs.copyFile(apk, path.join(target, '手机端/乐北斗.apk'));
 await fs.writeFile(path.join(target, '手机端/安装手机端.cmd'), '@echo off\r\nchcp 65001 >nul\r\ntitle 乐北斗\r\n"%~dp0..\\runtime\\adb\\adb.exe" install -r "%~dp0乐北斗.apk"\r\npause\r\n');
-await fs.writeFile(path.join(target, '启动.cmd'), '@echo off\r\nchcp 65001 >nul\r\ntitle 乐北斗\r\n"%~dp0runtime\\node\\node.exe" "%~dp0app\\launch.cjs"\r\nif errorlevel 1 pause\r\n');
-await fs.writeFile(path.join(target, '停止.cmd'), '@echo off\r\nchcp 65001 >nul\r\ntitle 乐北斗\r\n"%~dp0runtime\\node\\node.exe" "%~dp0app\\server\\server.mjs" --home "%~dp0." --stop\r\nif errorlevel 1 pause\r\n');
+// 不生成任何 .cmd 启动器：用户在包目录打开命令行，直接输入命令运行（启动/停止命令见 使用说明.md）。
 // 说明书与第三方声明：中文、英文两版一起随包发布（缺哪版就跳过哪版）
 for (const name of ['使用说明.md', '使用说明.en.md', 'THIRD_PARTY_NOTICES.md', 'THIRD_PARTY_NOTICES.en.md']) {
   if (!(await fs.access(name).then(() => true, () => false))) {

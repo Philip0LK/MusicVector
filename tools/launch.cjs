@@ -6,7 +6,7 @@ const home=path.resolve(__dirname,'..'),data=path.join(home,'data');
  const out=fs.openSync(path.join(data,'logs','startup.log'),'a');
  const child=spawn(process.execPath,[path.join(__dirname,'server/server.mjs'),'--home',home],{cwd:home,windowsHide:true,detached:true,stdio:['ignore',out,out]});child.unref();fs.closeSync(out);
  for(let i=0;i<120;i++){
-  try{const info=JSON.parse(fs.readFileSync(path.join(data,'.instance.json'),'utf8'));const r=await fetch(info.url+'/api/health',{headers:{'x-yuebeidou-token':info.token},signal:AbortSignal.timeout(500)});if(r.ok){console.log('乐北斗已开启。关闭浏览器后如需停止服务，请运行停止.cmd。');return}}catch{}
+  try{const info=JSON.parse(fs.readFileSync(path.join(data,'.instance.json'),'utf8'));const r=await fetch(info.url+'/api/health',{headers:{'x-yuebeidou-token':info.token},signal:AbortSignal.timeout(500)});if(r.ok){console.log('乐北斗已开启（'+info.url+'）。关闭浏览器不会停止服务；要停止请运行使用说明里的停止命令。');return}}catch{}
   await new Promise(r=>setTimeout(r,250));
  }
  throw Error('启动未完成，请查看 data/logs/startup.log');

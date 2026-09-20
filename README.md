@@ -21,14 +21,14 @@ The desktop download needs no separate runtime — it is all bundled. Unzip it i
 
 ## Getting started
 
-1. Double-click **`启动.cmd`** ("Start"). A console window flashes and closes on its own; your browser opens MusicVector and the service keeps running in the background.
+1. Open a console in that folder (type `powershell` in the folder's address bar and press Enter) and run `.\runtime\node\node.exe .\app\launch.cjs`. Your browser opens MusicVector and the service keeps running in the background — the console window can be closed again. Running the same command later just opens the instance that is already running. (In `cmd.exe`, drop the `.\` prefixes.)
 2. Click **新建歌曲** ("New song") and upload score photos: one page per image, as many pages as you like. Images only (PNG / JPEG / WebP) — convert PDFs to images first.
 3. Open **设置** ("Settings") once, enter your model API key and verify it — **Qwen (通义千问) is the recommended choice**, see the FAQ below. Recognition calls a vision model online; the key is encrypted for the current Windows user and stored on this machine only, so you enter it again on another computer.
 4. Click **开始识别** ("Start recognition"). Each page is split into staff lines and recognised line by line. Results are saved before they are returned, so nothing is lost if the computer is switched off mid-way.
 5. Recognition is never perfectly accurate — fix what is wrong in **修正乐谱** ("Correct score") and save.
 6. Back on the practice page, click any note to start practising from there.
 
-Double-click **`停止.cmd`** ("Stop") when you are done. Closing the browser does **not** stop the background service.
+To stop it, run `.\runtime\node\node.exe .\app\server\server.mjs --home . --stop` in the same folder. Closing the browser does **not** stop the background service.
 
 ## While practising
 
@@ -82,7 +82,7 @@ data/
 
 **The result is wrong overall?** Try a clearer photo: straight on, even lighting, no tilt, no glare. Recognition quality mostly follows photo quality.
 
-**Port already in use?** The program picks another free port automatically — trust the address that opened in your browser. Double-clicking `启动.cmd` again only opens the instance that is already running.
+**Port already in use?** The program picks another free port automatically — trust the address that opened in your browser. Running the start command again only opens the instance that is already running.
 
 **Does it work offline?** Practising, playback and phone transfer do, as long as phone and computer share a Wi-Fi network. Only recognition needs the internet.
 
