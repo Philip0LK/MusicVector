@@ -1,0 +1,36 @@
+name: Source quality
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  checks:
+    name: Source quality / checks
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Prepare Python for existing Windows vault tests
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path runtime -Force | Out-Null
+          $pythonRoot = python -c "import sys; print(sys.prefix)"
+          New-Item -ItemType Junction -Path runtime/python -Target $pythonRoot | Out-Null
+      - name: Install secret scanner
+        shell: pwsh
+        run: ./tools/install-gitleaks.ps1
+      - run: npm ci --no-audit --no-fund
+      - run: npm run check:secrets -- --history
+      - run: npm run check:publish
+      - run: npm test
+      - run: npm run build

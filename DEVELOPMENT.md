@@ -51,21 +51,13 @@ cd android
 - 调试版包名是 `com.yuebeidou.player.debug`，可与正式版同时安装。
 - 正式签名：把 `keystore.properties.example` 复制成 `keystore.properties` 并填好，`assembleRelease` 就会用它签名；该文件与密钥库都不进仓库。
 
-## 打包
+## 构建
 
 ```bash
 npm run build
-node tools/package.mjs --refresh                     # releases/MusicVector（空库，供分发）
-node tools/package.mjs --refresh --with-data <目录>   # releases/MusicVector-personal（带指定曲库）
 ```
 
-打包要求 `runtime/` 与手机端 APK（`android/` 下构建产物）都在。正式发布前跑一次：
-
-```bash
-npm run check:publish
-```
-
-它会列出将公开的文件，并在发现个人内容（曲谱、曲库、截图）时直接失败。
+生成浏览器页面 `dist/` 和本地服务 `build/`。日常调试使用前面的开发命令；直接使用产品请下载 [Release](https://github.com/Philip0LK/MusicVector/releases)。
 
 ## 时值与附点的一条硬规矩
 

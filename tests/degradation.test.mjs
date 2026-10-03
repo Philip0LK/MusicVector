@@ -107,5 +107,9 @@ test('缺时值用几何读数兜底：AI 没给 + 几何置信度低也填上',
 
 test('索引级仍整页失败：字段结构不符',()=>{
  assert.throws(()=>decode([row('a'),{...row('b'),melody:['single',[]]}]),/紧凑格式字段/);
- assert.throws(()=>decodeCompactRows({requestId:UUID,rows:[{rowId:'a',symbols:'1',arcs:[]}]},{requestId:UUID,rowIds:['a']}),/紧凑格式字段/);
+ // 空集合字段（arcs/tuplets/lyrics/issues）缺失只按空集合补齐；字段存在但类型不对、缺 rowId/symbols 仍整页失败
+ const filled=decodeCompactRows({requestId:UUID,rows:[{rowId:'a',symbols:'1',arcs:[]}]},{requestId:UUID,rowIds:['a']}).rows[0];
+ assert.deepEqual(filled.tuplets,[]);assert.deepEqual(filled.issues,[]);
+ assert.throws(()=>decodeCompactRows({requestId:UUID,rows:[{rowId:'a',symbols:'1',arcs:{}}]},{requestId:UUID,rowIds:['a']}),/应为数组/);
+ assert.throws(()=>decodeCompactRows({requestId:UUID,rows:[{symbols:'1'}]},{requestId:UUID,rowIds:['a']}),/缺少 rowId/);
 });

@@ -92,8 +92,8 @@ app/src/test/resources/fixtures/ 电脑端生成的金标准
 `YUEBEIDOU_TOOLING` 环境变量 → 工程内 `.tooling` 目录联接。首次使用：
 
 ```powershell
-# 指向本机已装好的工具链（或设 YUEBEIDOU_TOOLING 环境变量）
-New-Item -ItemType Junction -Path .\.tooling -Target E:\AI\知音音韵\zhiyin\.tooling
+# 示例路径请替换成你的工具链目录，也可设 YUEBEIDOU_TOOLING 环境变量
+New-Item -ItemType Junction -Path .\.tooling -Target C:\AndroidToolchain
 
 # 单测
 .\scripts\gradle-local.ps1 :app:testDebugUnitTest

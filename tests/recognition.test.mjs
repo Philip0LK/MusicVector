@@ -72,9 +72,13 @@ test('one unparseable reference never fails the whole response',()=>{
  // 弧线本身不是 [起点,终点] 时忽略这一条，其余弧线照旧
  const shape=decodeCompactRows(compact('1 2 3',{arcs:[3,[1,2]]}),options).rows[0];
  assert.equal(shape.arcs.length,1);assert.equal(shape.arcs[0].end.eventId,'e2');assert.equal(shape.issues[0].code,'unsupported-symbol');
- // 仍然硬失败的只有结构性问题：字段结构不符
+ // 仍然硬失败的只有结构性问题：缺 rowId/symbols、字段类型不对、多了契约外的字段
  assert.equal(decodeCompactRows(compact('2/8/'),options).rows[0].events.length,1);
- assert.throws(()=>decodeCompactRows({requestId:'req',rows:[{rowId:'row-a',symbols:'1',arcs:[]}]},options));
+ const filled=decodeCompactRows({requestId:'req',rows:[{rowId:'row-a',symbols:'1',arcs:[]}]},options).rows[0];
+ assert.deepEqual(filled.tuplets,[]);assert.deepEqual(filled.issues,[]);
+ assert.throws(()=>decodeCompactRows({requestId:'req',rows:[{rowId:'row-a',symbols:'1',arcs:{}}]},options));
+ assert.throws(()=>decodeCompactRows({requestId:'req',rows:[{symbols:'1'}]},options));
+ assert.throws(()=>decodeCompactRows({requestId:'req',rows:[{rowId:'row-a',symbols:'1',unknown:[]}]},options));
  // 缺行改为补空占位行 + 记录，不再作废整页
  const short=decodeCompactRows(compact('1'),{requestId:'req',rowIds:['row-a','row-b']});
  assert.equal(short.rows.length,2);
@@ -109,13 +113,16 @@ test('full-width and musical glyph variants read as the same notation',()=>{
  assert.deepEqual(parseSymbols('＃５ｖ／ ７．'),parseSymbols('#5v/ 7.'));
  assert.deepEqual(parseSymbols('♯5 ♭3 ♮2 ‖'),parseSymbols('#5 b3 n2 ||'));
 });
-test('parentheses are ignored as blanks and never take an event position',()=>{
- // 真实故障：模型把谱面上的提示性括号写进了 symbols（行首孤立括号、成对跨小节）
+test('parentheses carry group marks and never take an event position',()=>{
+ // 落单的括号仍按纯装饰忽略：左右括号都不占事件位置，符号序列照旧
  assert.deepEqual(parseSymbols('( 1^ 6/ 1^/ | 2 - - ) 1 2'),parseSymbols('1^ 6/ 1^/ | 2 - - 1 2'));
- assert.deepEqual(parseSymbols('（1）2'),parseSymbols('1 2'));
+ // 连音组标记贴在音符前后都读成同一个音上的标记（位置不携带信息），事件编号不受标记影响
+ assert.equal(parseSymbols('2(1)').length,1);
+ assert.deepEqual(parseSymbols('(1)2'),parseSymbols('2(1)'));
  const events=parseSymbols('( 1 2 3');
  assert.equal(events.length,3);assert.equal(events[0].id,'e1');assert.equal(events[2].id,'e3');
- assert.equal(parseSymbols('2(3').length,2);
+ // 只写了一半括号（模型截断）仍能读出组号，事件仍然只有一个
+ assert.equal(parseSymbols('2/(1').length,1);
 });
 test('out-of-contract content is ignored in one pass and always recorded',()=>{
  // 反复记号：小节线成了正常 token（小节结构不受影响），冒号按纯记号静默忽略

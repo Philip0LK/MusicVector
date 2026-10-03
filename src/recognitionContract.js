@@ -15,7 +15,10 @@ const rowIssueCodes=['extra-row-ignored','unclear-symbol','clipped-connection','
  'note-count-mismatch','ai-missed-note','ai-extra-note','low-dot-overridden','degree-disagree','degree-unverified','geometry-unavailable','rhythm-unresolved',
  'dots-downgraded','duration-approximated',
  'requestId-mismatch','unknown-note-token','unknown-note-dropped','unknown-arc-dropped','mark-conflict-resolved','missing-row-placeholder','duplicate-row-conflict',
- 'geometry-block-unpaired','low-row-quality','rhythm-from-default'];
+ 'geometry-block-unpaired','low-row-quality','rhythm-from-default',
+ // 连音组标记（音符上的括号标记）与由它推出的弧线：新写法取代"数音符序号"的 arcs，容错过程也逐条留档。
+ 'group-mark-invalid','group-mark-on-rest','group-mark-duplicated','group-mark-detached','group-number-reused',
+ 'group-number-unmatched','group-cross-row-misplaced','group-endpoint-completed','group-open-unresolved','group-letter-mismatch','arc-source-conflict'];
 function issues(list,header=false){for(const issue of array(list,'issues')){
  obj(issue,header?['field','code','detail']:['code','targetId','field','detail'],'issue');
  check(one(issue.code,header?['unclear','multiple','unsupported']:rowIssueCodes),'issue.code');
@@ -37,7 +40,12 @@ export function validateRows(value,{requestId,rowIds}){
  array(value.rows,'rows');check(value.rows.length===rowIds.length,'缺少或多出乐谱行');
  const byRow=new Map();
  value.rows.forEach((r,index)=>{
-  obj(r,['rowId','events','arcs','tuplets','lyrics','issues',...(Object.hasOwn(r,'meterMarks')?['meterMarks']:[])],'row');check(r.rowId===rowIds[index]&&!byRow.has(r.rowId),'rowId 或顺序');
+  obj(r,['rowId','events','arcs','tuplets','lyrics','issues',
+   ...(Object.hasOwn(r,'meterMarks')?['meterMarks']:[]),
+   ...(Object.hasOwn(r,'groupNumbers')?['groupNumbers']:[]),
+   ...(Object.hasOwn(r,'openGroups')?['openGroups']:[]),
+   ...(Object.hasOwn(r,'incomingGroups')?['incomingGroups']:[]),
+   ...(Object.hasOwn(r,'undirectedGroups')?['undirectedGroups']:[])],'row');check(r.rowId===rowIds[index]&&!byRow.has(r.rowId),'rowId 或顺序');
   const ids=new Map();byRow.set(r.rowId,ids);
   for(const e of array(r.events,'events')){check(!!eventKeys[e.kind],'事件类型');obj(e,eventKeys[e.kind],'event');str(e.id,'event.id');check(!ids.has(e.id),'重复事件 ID');ids.set(e.id,e.kind);
    if(e.kind==='note'){check(nullable(e.degree,v=>int(v,1,7)),'degree');check(nullable(e.octave,v=>int(v,-2,2)),'octave');check(nullable(e.accidental,v=>one(v,['sharp','flat','natural','none'])),'accidental');}
@@ -45,6 +53,12 @@ export function validateRows(value,{requestId,rowIds}){
    if(e.kind==='barline')check(one(e.style,['single','double','final','unknown']),'barline.style');
   }
   for(const key of ['arcs','tuplets','lyrics']){array(r[key],key);const seen=new Set(ids.keys());for(const x of r[key]){str(x.id,key+'.id');check(!seen.has(x.id),'重复对象 ID');seen.add(x.id);}}
+  // 连音组：groupNumbers 是 [组号,连音数]（连音数可为 null = 普通连接）；openGroups/incomingGroups 是本行
+  // 末音/首音上的跨行字母标记（各至多一个）。undirectedGroups 仅供单音符行保留待定方向的标记，
+  // 不与已定方向同时出现；连接在 convertRows 里等整页到齐后按相邻行位置接。
+  if(Object.hasOwn(r,'groupNumbers'))for(const g of array(r.groupNumbers,'groupNumbers'))check(Array.isArray(g)&&g.length===2&&int(g[0],1,99)&&nullable(g[1],v=>int(v,2,16)),'groupNumbers');
+  for(const key of ['openGroups','incomingGroups','undirectedGroups'])if(Object.hasOwn(r,key)){array(r[key],key);check(r[key].length<=1,'跨行组标记个数');for(const letter of r[key])check(typeof letter==='string'&&/^[a-z]$/.test(letter),key+' 标记');}
+  if(r.undirectedGroups?.length)check(r.events.filter(e=>e.kind==='note').length===1&&!r.openGroups?.length&&!r.incomingGroups?.length,'单音符行标记方向');
   issues(r.issues);
  });
  // 单点引用降级：引用指不到可确认的音符时，把该处置空/剔除并留档，绝不因一条坏引用作废整页。

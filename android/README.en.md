@@ -94,8 +94,8 @@ The toolchain (JDK 17 + Android SDK + Gradle 8.10.2) is not put in the repositor
 `YUEBEIDOU_TOOLING` environment variable, then the `.tooling` directory junction inside the project. First use:
 
 ```powershell
-# Point at the toolchain already installed on this machine (or set the YUEBEIDOU_TOOLING environment variable)
-New-Item -ItemType Junction -Path .\.tooling -Target E:\AI\知音音韵\zhiyin\.tooling
+# Replace the sample path with your toolchain directory, or set YUEBEIDOU_TOOLING
+New-Item -ItemType Junction -Path .\.tooling -Target C:\AndroidToolchain
 
 # Unit tests
 .\scripts\gradle-local.ps1 :app:testDebugUnitTest

@@ -95,6 +95,70 @@ export function convertRows(rawRows,slices,{imageId,songId,page,runId,geometry,m
   const [fromNoteId,toNoteId]=noteOrder.get(first)<=noteOrder.get(second)?[first,second]:[second,first];
   result[rowOfNote.get(fromNoteId)].recognitionArcs.push({id:runId+':'+raw.rowId+':'+arc.id,type:'auto',fromNoteId,toNoteId,number:arc.number??null});
  }});
+ // 跨行连音标记（写在行末音与下一行首音上的同一字母）：每两条相邻行之间最多只可能有一条跨行连接，
+ // "位置"本身已经确定了连的是哪两个音，所以字母不参与配对，只用来核对两端写的是否同一组。
+ // 只有一端写了标记时，两端同音高才补齐（连音通常连在同一个音上）；音高不同说明这一端可能不属于这条连接，
+ // 记为待确认而不猜。本页第一行之前的、最后一行之后的跨行标记在本页内无从判定，同样记为待确认，不新造跨页机制。
+ // 标记附着在实际音符上，休止和读不出的占位不充当弧线端点。
+ const pitchedNotes=result.map(row=>row.notes.filter(note=>note.degree>0));
+ const firstNoteOf=pitchedNotes.map(notes=>notes[0]??null),lastNoteOf=pitchedNotes.map(notes=>notes[notes.length-1]??null);
+ const samePitch=(a,b)=>Boolean(a&&b)&&a.degree!==null&&b.degree!==null&&a.degree===b.degree&&a.octave===b.octave&&a.accidental===b.accidental;
+ const crossIssue=(index,code,note,detail)=>result[index].recognitionIssues.push({code,targetId:note?.recognitionEventId??null,field:'symbols',detail:detail+'，待人工确认'});
+ // 旧归档曾把单音符行一律记成 openGroups；复算时重判方向，不修改保存的归档。
+ const undirected=rawRows.map(row=>row.undirectedGroups?.[0]??(row.events.filter(event=>event.kind==='note').length===1&&!row.incomingGroups?.length?row.openGroups?.[0]??null:null));
+ const tails=rawRows.map((row,index)=>undirected[index]?null:row.openGroups?.[0]??null),heads=rawRows.map((row,index)=>undirected[index]?null:row.incomingGroups?.[0]??null);
+ if(undirected.some(Boolean)){
+  // 候选只在相邻行之间产生；缺一个标记时仍须同音高。一个待定标记最多参与一次连接。
+  // 优先解释更多已有标记，再优先完整的两端和同字母证据。多种同分方向都成立时不强行选择。
+  const base=rawRows.length+1;
+  const weights=rawRows.slice(0,-1).map((_,index)=>{
+   const tail=tails[index]??undirected[index],head=heads[index+1]??undirected[index+1];
+   if(!lastNoteOf[index]||!firstNoteOf[index+1]||(!tail&&!head))return 0;
+   if(tail&&head)return 2*base*base+base+Number(tail===head);
+   return samePitch(lastNoteOf[index],firstNoteOf[index+1])?base*base:0;
+  });
+  // 状态分别为上一条边未选/已选；只有共享单音符待定标记的相邻边互斥。
+  const bestWithout=excluded=>{
+   let skipped=0,taken=-Infinity;
+   for(const [index,weight] of weights.entries()){
+    const nextSkipped=Math.max(skipped,taken);
+    const nextTaken=weight&&index!==excluded?weight+(undirected[index]?skipped:Math.max(skipped,taken)):-Infinity;
+    skipped=nextSkipped;taken=nextTaken;
+   }
+   return Math.max(skipped,taken);
+  };
+  const best=bestWithout(-1),resolved=new Set();
+  for(const [index,weight] of weights.entries()){
+   if(!weight||(!undirected[index]&&!undirected[index+1])||bestWithout(index)===best)continue;
+   // 排除这一条连接就变差，说明它出现在所有最优对应中，方向可唯一确认。
+   if(undirected[index]){tails[index]=undirected[index];resolved.add(index);}
+   if(undirected[index+1]){heads[index+1]=undirected[index+1];resolved.add(index+1);}
+  }
+  for(const [index,letter] of undirected.entries())if(letter&&!resolved.has(index))crossIssue(index,'group-open-unresolved',firstNoteOf[index],'跨行标记「('+letter+')」在单音符行上无法确定连接上一行或下一行，未连接');
+ }
+ const crossArc=(from,to)=>{
+  const a=lastNoteOf[from],b=firstNoteOf[to];if(!a||!b)return;
+  const [fromNoteId,toNoteId]=noteOrder.get(a.id)<=noteOrder.get(b.id)?[a.id,b.id]:[b.id,a.id];
+  result[rowOfNote.get(fromNoteId)].recognitionArcs.push({id:runId+':cross:'+rawRows[from].rowId,type:'auto',fromNoteId,toNoteId,number:null});
+ };
+ rawRows.forEach((raw,index)=>{
+  const next=rawRows[index+1],tail=tails[index],head=next?heads[index+1]:null;
+  // 本页第一行的首音标记指向上一页的末音：跨页连接超出本页可见范围，留待确认。
+  if(index===0&&(raw.incomingGroups||[]).length)crossIssue(0,'group-open-unresolved',firstNoteOf[0],'跨行标记「('+raw.incomingGroups[0]+')」指向上一页的末音，本页内无法连接');
+  if(!tail&&!head)return;
+  const a=lastNoteOf[index],b=next?firstNoteOf[index+1]:null;
+  // 待定标记未分配给此边（含已用于另一边）时，不能再当作“漏标一端”补出第二条连接。
+  if((undirected[index]&&!tail)||(undirected[index+1]&&!head)){
+   if(tail&&!undirected[index])crossIssue(index,'group-open-unresolved',a,'跨行标记「('+tail+')」的相邻单音符行方向未能确定，未连接');
+   if(head&&!undirected[index+1])crossIssue(index+1,'group-open-unresolved',b,'跨行标记「('+head+')」的相邻单音符行方向未能确定，未连接');
+   return;
+  }
+  if(!a||!b){crossIssue(index,'group-open-unresolved',a,'跨行标记「('+(tail??head)+')」缺一端（下一行不存在或该行没有可用音符），无法连接');return;}
+  if(tail&&head&&tail!==head)crossIssue(index,'group-letter-mismatch',b,'跨行标记两端字母不一致（'+tail+' 与 '+head+'），已按同一条连接处理');
+  if(tail&&head)crossArc(index,index+1);
+  else if(samePitch(a,b)){crossArc(index,index+1);crossIssue(index,'group-endpoint-completed',tail?a:b,'跨行标记「('+(tail??head)+')」只写了一端，两端同音高，已补成一条连接');}
+  else crossIssue(index,'group-open-unresolved',tail?a:b,'跨行标记「('+(tail??head)+')」只写了一端，另一端不是同音高，未连接');
+ });
  rawRows.forEach((raw,index)=>{
   let part=0,occupied=false;const starts=[];
   for(const event of raw.events){if(event.kind==='barline'){if(occupied){part++;occupied=false;}}else if(['note','rest'].includes(event.kind)){if(!occupied){starts[part]=mapping.get(raw.rowId+':'+event.id);occupied=true;}}}

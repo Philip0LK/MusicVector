@@ -51,21 +51,13 @@ cd android
 - The debug build's package name is `com.yuebeidou.player.debug`, so it can be installed alongside the release build.
 - Release signing: copy `keystore.properties.example` to `keystore.properties` and fill it in; `assembleRelease` will sign with it, and neither that file nor the keystore goes into the repository.
 
-## Packaging
+## Build
 
 ```bash
 npm run build
-node tools/package.mjs --refresh                     # releases/MusicVector (empty library, for distribution)
-node tools/package.mjs --refresh --with-data <folder>   # releases/MusicVector-personal (with the specified library)
 ```
 
-Packaging requires both `runtime/` and the mobile APK (the build output under `android/`) to be present. Run this once before an official release:
-
-```bash
-npm run check:publish
-```
-
-It lists the files that will be made public, and fails outright when it finds personal content (scores, library, screenshots).
+Builds browser assets in `dist/` and the local service in `build/`. For development, use the commands above. To use the product, download a [Release](https://github.com/Philip0LK/MusicVector/releases).
 
 ## One hard rule about durations and dots
 

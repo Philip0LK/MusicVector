@@ -1,0 +1,46 @@
+title = "MusicVector secret checks"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "musicvector-provider-key"
+description = "OpenAI-compatible provider key"
+regex = '''\bsk-[A-Za-z0-9_-]{20,}\b'''
+keywords = ["sk-"]
+
+[[rules]]
+id = "musicvector-glm-key"
+description = "Zhipu GLM provider key"
+regex = '''\b[0-9a-f]{32}\.[A-Za-z0-9]{16}\b'''
+
+[[rules]]
+id = "musicvector-signing-password"
+description = "Android signing password"
+regex = '''(?i)(?:storePassword|keyPassword)\s*[:=]\s*["']?([^\s"']{1,})'''
+secretGroup = 1
+keywords = ["storePassword", "keyPassword"]
+
+# 仅排除读取配置的表达式和模板中的两句占位文字；不排除文件或整类规则。
+[[rules.allowlists]]
+regexTarget = "secret"
+regexes = ['''^keystoreProperties\.getProperty\($''', '''^改成你的密钥(?:库)?口令$''']
+
+# 保留默认 generic-api-key 规则，仅排除两个依赖文件内已核验的固定常量。
+# 不排除整个文件、runtime 或第三方目录；替换常量为其他值仍会被扫描。
+[[rules]]
+id = "generic-api-key"
+
+[[rules.allowlists]]
+description = "OpenCV 4.12 GAPI type names are not credentials"
+condition = "AND"
+regexTarget = "secret"
+paths = ['''(?:^|/)runtime/python/Lib/site-packages/cv2/gapi/__init__\.py$''']
+regexes = ['''^cv\.gapi\.CV_(?:UINT64|POINT2F|POINT3F)$''']
+
+[[rules.allowlists]]
+description = "NumPy 2.2.6 MT19937 regression SHA-256 values"
+condition = "AND"
+regexTarget = "secret"
+paths = ['''(?:^|/)runtime/python/Lib/site-packages/numpy/random/tests/test_generator_mt19937\.py$''']
+regexes = ['''^(?:bb1636883c2707b51c5b7fc26c6927af4430f2e0785a8c7bc886337f919f9edf|ff682ac12bb140f2d72fba8d3506cf4e46817a0db27aae1683867629031d8d55|16b791a1e04886ccbbb4d448d6ff791267dc458ae599475d08d5cced29d11614|a0110a2cf23b56be0feaed8f787a7fc84bef0cb5623003d75b26bdfa1c18002c|d306cf01314d51bd37892d874308200951a35265ede54d200f1e065004c3e9ea|0e00ab449f01a5195a83b4aee0dfbc2ce8d46466a640b92e33977d2e42f777f8)$''']

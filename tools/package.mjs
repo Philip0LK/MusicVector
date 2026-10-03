@@ -11,10 +11,14 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {execFileSync} from 'node:child_process';
-import {DataStore, hash} from '../server/dataStore.mjs';
+import {DataStore} from '../server/dataStore.mjs';
+import {versions, verifyBuild, verifyPackage, sha256} from './release-support.mjs';
+import {scanDirectory} from './security.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 process.chdir(root);
+const build = await verifyBuild(root);
+const version = await versions(root);
 
 const arg = (name) => {
   const i = process.argv.indexOf(name);
@@ -26,13 +30,10 @@ const personalData = arg('--with-data') ? path.resolve(arg('--with-data')) : nul
 const edition = personalData ? 'personal' : 'public';
 const target = path.join(output, personalData ? 'MusicVector-personal' : 'MusicVector');
 
-const APK_CANDIDATES = [
-  'android/app/build/outputs/apk/release/app-release.apk',
-  'android/app/build/outputs/apk/debug/app-debug.apk',
-];
-const apk = (await Promise.all(APK_CANDIDATES.map(async (file) => ((await fs.access(file).then(() => true, () => false)) ? file : null)))).find(Boolean);
-if (!apk) throw Error('没有找到手机端 APK：请先在 android/ 下构建（assembleRelease 或 assembleDebug）');
-if (!apk.includes('release')) console.warn('警告：用的是调试签名的 APK，只适合自己试，不要对外分发。');
+const apk = 'android/app/build/outputs/apk/release/app-release.apk';
+const apkProof = JSON.parse(await fs.readFile('build/apk-provenance.json', 'utf8').catch(() => {throw Error('缺少正式 APK 来源记录，请运行 npm run release:prepare -- --ref <提交或标签>');}));
+if (apkProof.sourceCommit !== build.sourceCommit || apkProof.sha256 !== await sha256(apk) || apkProof.applicationId !== 'com.yuebeidou.player' || apkProof.versionCode !== version.androidVersionCode || apkProof.versionName !== version.androidVersionName) throw Error('正式 APK 的提交、版本或校验值不一致');
+if (apkProof.fingerprint !== '8aaf2211ee6dc5ba7508d1144097026741fa2147b9685a019e999bf81f62e1a1') throw Error('APK 未沿用正式签名身份');
 if (!(await fs.access(runtime).then(() => true, () => false))) throw Error('缺少自带运行环境：' + runtime + '（可用 --runtime 指定）');
 
 await fs.mkdir(output, {recursive: true});
@@ -47,14 +48,6 @@ try {
   if (e.code !== 'ENOENT') throw e;
 }
 
-// 还没 git init 或没有 git 时也能打包，只是清单里不记录来源提交。
-const git = (() => {
-  try {
-    return execFileSync('git', ['rev-parse', 'HEAD'], {encoding: 'utf8'}).trim();
-  } catch {
-    return null;
-  }
-})();
 const app = path.join(target, 'app');
 await fs.mkdir(path.join(app, 'server'), {recursive: true});
 await fs.cp('dist', path.join(app, 'public'), {recursive: true});
@@ -84,7 +77,10 @@ if (personalData) {
   for (const name of ['library.json', 'settings.json', 'practice.json']) {
     await fs.copyFile(path.join(personalData, name), path.join(data, name)).catch(() => {});
   }
-  for (const id of index.songIds) await fs.cp(path.join(personalData, 'songs', id), path.join(data, 'songs', id), {recursive: true});
+  for (const id of index.songIds) {
+    if (typeof id !== 'string' || !/^[a-zA-Z0-9_-]{1,180}$/.test(id)) throw Error('歌曲标识无效');
+    await fs.cp(path.join(personalData, 'songs', id), path.join(data, 'songs', id), {recursive: true});
+  }
 } else {
   await new DataStore(data).init();
 }
@@ -116,20 +112,24 @@ const walk = async (dir) => {
   for (const entry of await fs.readdir(dir, {withFileTypes: true})) {
     const at = path.join(dir, entry.name);
     if (entry.isDirectory()) await walk(at);
-    else files.push({path: path.relative(target, at).replaceAll('\\', '/'), sha256: hash(await fs.readFile(at))});
+    else files.push({path: path.relative(target, at).replaceAll('\\', '/'), size: (await fs.stat(at)).size, sha256: await sha256(at)});
   }
 };
 await walk(target);
+const bundledNode = execFileSync(path.join(runtime, 'node/node.exe'), ['--version'], {encoding:'utf8', windowsHide:true}).trim();
+const bundledPython = JSON.parse(execFileSync(path.join(runtime, 'python/python.exe'), ['-c', 'import json,sys,cv2,numpy,PIL;print(json.dumps(dict(python=sys.version.split()[0],opencv=cv2.__version__,numpy=numpy.__version__,pillow=PIL.__version__)))'], {encoding:'utf8', windowsHide:true}));
 await fs.writeFile(path.join(target, 'manifest.json'), JSON.stringify({
   name: 'MusicVector',
-  version: '1.0.0',
+  ...version,
   edition,
-  sourceCommit: git,
-  node: '24.14.0',
-  python: '3.12.14',
-  opencv: '4.12.0.88',
-  numpy: '2.2.6',
-  pillow: '11.3.0',
+  sourceCommit: build.sourceCommit,
+  builtAt: new Date().toISOString(),
+  lockSha256: await sha256(path.join(root, 'package-lock.json')),
+  apk: apkProof,
+  node: bundledNode,
+  ...bundledPython,
   files,
 }, null, 2));
+await verifyPackage(target, edition);
+scanDirectory(target);
 console.log(`${target} — ${files.length} 个文件（${edition}）`);

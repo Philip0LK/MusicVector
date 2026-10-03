@@ -1,7 +1,7 @@
 # Run Gradle with the Android toolchain that is already installed on this machine.
 #
 # Two traps this script handles:
-# 1. The project path contains non-ASCII characters (E:\AI\<chinese>\android) and AGP
+# 1. The project path may contain non-ASCII characters and AGP
 #    rejects it, so the project root is first mapped to an ASCII drive letter with subst.
 # 2. The toolchain (JDK 17 + Android SDK + Gradle 8.10.2, about 1.5 GB) is NOT committed.
 #    It is resolved from YUEBEIDOU_TOOLING, or from a ".tooling" directory junction inside
@@ -22,13 +22,22 @@ function Normalize-Path([string]$Path) {
 }
 
 function Test-ProjectDrive([string]$Drive) {
-    # Get-PSDrive does not expose the target of a substitute drive on this Windows
-    # version, so identify an existing mapping by a marker only this project has.
-    $settings = Join-Path ($Drive + "\") "settings.gradle.kts"
-    if (-not (Test-Path $settings)) { return $false }
-    return (Select-String -Path $settings -Pattern 'rootProject\.name = "YueBeiDouPhone"' -Quiet) -eq $true
+    # Multiple checkouts share the same project name. Reuse only the exact path.
+    foreach ($Mapping in (& subst)) {
+        if ($Mapping -match '^([A-Z]:)\\: => (.+)$') {
+            if ($Matches[1] -eq $Drive -and (Normalize-Path $Matches[2]) -eq (Normalize-Path $Root)) { return $true }
+        }
+    }
+    return $false
 }
 
+$Tooling = $env:YUEBEIDOU_TOOLING
+if ([string]::IsNullOrWhiteSpace($Tooling)) { $Tooling = Join-Path $Root ".tooling" }
+if (-not (Test-Path $Tooling)) { throw "Android toolchain not found at $Tooling. Set YUEBEIDOU_TOOLING." }
+$Gradle = Join-Path $Tooling "gradle-8.10.2\bin\gradle.bat"
+if (-not (Test-Path $Gradle)) { throw "Gradle not found at $Gradle" }
+
+$CreatedDrive = $null
 if ($Root -cmatch "[^\u0000-\u007F]") {
     $Drive = $null
     foreach ($Candidate in @("Z:", "Y:", "X:", "W:", "V:")) {
@@ -37,16 +46,10 @@ if ($Root -cmatch "[^\u0000-\u007F]") {
             continue
         }
         & subst $Candidate $Root
-        if ($LASTEXITCODE -eq 0) { $Drive = $Candidate; break }
+        if ($LASTEXITCODE -eq 0) { $Drive = $Candidate; $CreatedDrive = $Candidate; break }
     }
     if ($null -eq $Drive) { throw "No free drive letter (Z: Y: X: W: V: are all taken)." }
     $RunRoot = "$Drive\"
-}
-
-$Tooling = $env:YUEBEIDOU_TOOLING
-if ([string]::IsNullOrWhiteSpace($Tooling)) { $Tooling = Join-Path $Root ".tooling" }
-if (-not (Test-Path $Tooling)) {
-    throw "Android toolchain not found at $Tooling. Set YUEBEIDOU_TOOLING, or create a '.tooling' directory junction inside this project."
 }
 
 $env:JAVA_HOME = Join-Path $Tooling "jdk-17"
@@ -60,9 +63,6 @@ $env:PATH = @(
     $env:PATH
 ) -join ";"
 
-$Gradle = Join-Path $Tooling "gradle-8.10.2\bin\gradle.bat"
-if (-not (Test-Path $Gradle)) { throw "Gradle not found at $Gradle" }
-
 Write-Output "JAVA_HOME=$env:JAVA_HOME"
 Write-Output "ANDROID_HOME=$env:ANDROID_HOME"
 Write-Output "PROJECT=$RunRoot"
@@ -73,4 +73,5 @@ try {
     exit $LASTEXITCODE
 } finally {
     Pop-Location
+    if ($CreatedDrive) { & subst $CreatedDrive /d }
 }
