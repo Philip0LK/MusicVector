@@ -1,7 +1,7 @@
 # Run Gradle with the Android toolchain that is already installed on this machine.
 #
 # Two traps this script handles:
-# 1. The project path contains non-ASCII characters (E:\AI\<chinese>\android) and AGP
+# 1. The project path may contain non-ASCII characters and AGP
 #    rejects it, so the project root is first mapped to an ASCII drive letter with subst.
 # 2. The toolchain (JDK 17 + Android SDK + Gradle 8.10.2, about 1.5 GB) is NOT committed.
 #    It is resolved from YUEBEIDOU_TOOLING, or from a ".tooling" directory junction inside
