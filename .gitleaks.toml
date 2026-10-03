@@ -1,0 +1,22 @@
+title = "MusicVector secret checks"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "musicvector-provider-key"
+description = "OpenAI-compatible provider key"
+regex = '''\bsk-[A-Za-z0-9_-]{20,}\b'''
+keywords = ["sk-"]
+
+[[rules]]
+id = "musicvector-signing-password"
+description = "Android signing password"
+regex = '''(?i)(?:storePassword|keyPassword)\s*[:=]\s*["']?([^\s"']{8,})'''
+secretGroup = 1
+keywords = ["storePassword", "keyPassword"]
+
+# 仅排除读取配置的表达式和模板中的两句占位文字；不排除文件或整类规则。
+[[rules.allowlists]]
+regexTarget = "secret"
+regexes = ['''^keystoreProperties\.getProperty\($''', '''^改成你的密钥(?:库)?口令$''']

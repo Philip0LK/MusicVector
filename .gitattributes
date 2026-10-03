@@ -11,3 +11,5 @@
 *.ogg binary
 *.apk binary
 *.jar binary
+# Git hooks require LF even on Windows.
+.githooks/* text eol=lf

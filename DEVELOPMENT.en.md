@@ -53,19 +53,32 @@ cd android
 
 ## Packaging
 
-```bash
-npm run build
-node tools/package.mjs --refresh                     # releases/MusicVector (empty library, for distribution)
-node tools/package.mjs --refresh --with-data <folder>   # releases/MusicVector-personal (with the specified library)
+Maintain one source repository. Build both editions from a selected commit in a clean temporary checkout. Uncommitted development changes are excluded.
+
+First run `tools/install-gitleaks.ps1` and `npm run setup:git`. Keep the ignored `runtime/` and `android/keystore.properties`; set `YUEBEIDOU_TOOLING`, or use local `local/release-settings.json`, for the Android toolchain. Keep signing keys outside Git.
+
+```powershell
+npm run release:prepare -- --ref <commit-or-tag>
+npm run release:prepare -- --ref <commit-or-tag> --with-data <library-folder>
 ```
 
-Packaging requires both `runtime/` and the mobile APK (the build output under `android/`) to be present. Run this once before an official release:
+This installs locked dependencies, runs existing tests and local UI regressions, rebuilds the release APK, verifies the original signature, tests copies of the empty-library package, and checks the final archive. Personal packages copy and verify a library snapshot. Results and failure logs are in `releases/candidates/`; use the status in `验收记录.json`.
 
-```bash
-npm run check:publish
+Before public release, update package.json, package-lock.json and Android versions, increase Android versionCode, commit and rebuild, then select an unused version tag:
+
+```powershell
+npm run release:verify -- --run <candidate-folder> --tag v1.1.0
 ```
 
-It lists the files that will be made public, and fails outright when it finds personal content (scores, library, screenshots).
+The tag is an example. Verification rejects personal packages, existing remote tags, non-increasing Android versionCode, and altered artifacts. After the owner confirms the code and attachments, push the branch/tag and upload the GitHub Release. Preparing a candidate does not publish anything.
+
+`npm run package` is the assembly component. It requires a clean source commit, matching frontend/server provenance, and an APK record with matching commit, version, signature and hash. Debug APK fallback has been removed. Ordinary development can still use `npm run build`.
+
+## Daily Git
+
+Use local task branches and focused commits; publish only after confirmation. `npm run check:publish` scans candidate paths and secret content. `npm run check:secrets -- --history` scans all reachable history. Output is redacted.
+
+Local hooks can be bypassed. A repository administrator should enable GitHub push protection and require `Source quality / checks` for merges into main. The workflow is included; remote settings must be checked separately. Keep private backups of unpushed commits, libraries, credentials, workspace documents and tools.
 
 ## One hard rule about durations and dots
 

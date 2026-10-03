@@ -8,6 +8,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {execFileSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
+import {scanFiles} from './security.mjs';
 
 const root = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
 
@@ -86,4 +87,5 @@ if (problems.length) {
   [...new Set(problems)].forEach((p) => console.error('  ' + p));
   process.exit(1);
 }
-console.log('\n检查通过：没有发现个人内容。');
+await scanFiles();
+console.log('\n检查通过：候选路径与密钥内容扫描均通过。');

@@ -53,19 +53,32 @@ cd android
 
 ## 打包
 
-```bash
-npm run build
-node tools/package.mjs --refresh                     # releases/MusicVector（空库，供分发）
-node tools/package.mjs --refresh --with-data <目录>   # releases/MusicVector-personal（带指定曲库）
+只维护一份源码。公开包与个人包从指定提交的临时工作副本生成；开发目录的未提交改动不会进入候选包。
+
+首次配置：运行 `tools/install-gitleaks.ps1` 安装固定版本的密钥扫描器，运行 `npm run setup:git` 启用提交与推送检查。保留 `runtime/` 和被忽略的 `android/keystore.properties`；通过 `YUEBEIDOU_TOOLING` 或本机 `local/release-settings.json` 指定 Android 工具链。签名密钥继续放在仓库外。
+
+```powershell
+npm run release:prepare -- --ref <完整提交号或版本标签>
+npm run release:prepare -- --ref <完整提交号或版本标签> --with-data <曲库目录>
 ```
 
-打包要求 `runtime/` 与手机端 APK（`android/` 下构建产物）都在。正式发布前跑一次：
+入口会安装锁定依赖，运行原测试、本机 UI 回归和发布检查，重新构建正式 APK，校验原签名，验收空库包，再生成压缩包。个人包另外复制并校验曲库快照。全程使用隔离副本；结果在 `releases/candidates/`，以 `验收记录.json` 的状态为准。失败候选保留日志。
 
-```bash
-npm run check:publish
+正式上传前：统一修改 package.json、package-lock.json 和 Android 版本，增加 Android versionCode，提交并重建候选；选一个未使用的标签，再运行：
+
+```powershell
+npm run release:verify -- --run <候选目录> --tag v1.1.0
 ```
 
-它会列出将公开的文件，并在发现个人内容（曲谱、曲库、截图）时直接失败。
+`v1.1.0` 仅为格式示例。复核拒绝个人包、已使用标签、未增加的 versionCode 和被改写的附件。负责人确认代码与附件后，才推送分支/标签并上传 GitHub Release。本机生成候选不会自动公开。
+
+`npm run package` 是组包组件，要求来源提交干净、前端与服务端构建记录一致、正式 APK 记录与版本/签名/校验值一致，不再回退到调试 APK。常规开发仍可运行 `npm run build`。
+
+## 日常 Git
+
+使用本机任务分支开发，按实际目的提交；确认后才推送公开远端。`npm run check:publish` 检查候选路径和密钥内容，`npm run check:secrets -- --history` 检查所有可达历史。检查输出只提供脱敏线索。
+
+本机 hook 可能被绕过，公开仓库还应启用推送保护，并将 `Source quality / checks` 设为 main 的必需合并检查。仓库包含对应工作流；远端设置需仓库管理员核对。本机的未推送提交、曲库、凭据、工作区文档和工具另做私有备份。
 
 ## 时值与附点的一条硬规矩
 
