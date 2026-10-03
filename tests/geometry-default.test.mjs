@@ -1,5 +1,5 @@
 // 几何为默认：逐音对应与"没测出来才退回 AI"的边界。
-// 判据来源 docs/纯算法时值准确率-全样本-2026-09-15.md：
+// 判据来源 docs/评测与诊断/纯算法时值准确率-全样本-2026-09-15.md：
 //   几何读到 0 条时 84.4% 其实是真实的无减时线，所以不能把 0 一律当"没测出来"。
 //   真正的"没测出来" = underlineConfidence === 0 且非 unstableUnderlines（该行没标定到带 / 本块没匹配到层）。
 import test from 'node:test';import assert from 'node:assert/strict';
