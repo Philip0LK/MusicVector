@@ -10,9 +10,14 @@ regex = '''\bsk-[A-Za-z0-9_-]{20,}\b'''
 keywords = ["sk-"]
 
 [[rules]]
+id = "musicvector-glm-key"
+description = "Zhipu GLM provider key"
+regex = '''\b[0-9a-f]{32}\.[A-Za-z0-9]{16}\b'''
+
+[[rules]]
 id = "musicvector-signing-password"
 description = "Android signing password"
-regex = '''(?i)(?:storePassword|keyPassword)\s*[:=]\s*["']?([^\s"']{8,})'''
+regex = '''(?i)(?:storePassword|keyPassword)\s*[:=]\s*["']?([^\s"']{1,})'''
 secretGroup = 1
 keywords = ["storePassword", "keyPassword"]
 

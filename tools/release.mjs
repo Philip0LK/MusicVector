@@ -76,6 +76,16 @@ async function main() {
     for (const rel of ['local/fixtures','local/tests']) {
       if (await fs.access(path.join(root,rel)).then(()=>true,()=>false)) await fs.cp(path.join(root,rel),path.join(source,rel),{recursive:true});
     }
+    // 本机曲谱夹具和手机端金标准成对使用；只复制被忽略的测试资源，不改变选定版本的已跟踪文件。
+    report.privateFixtures=[];
+    for(const rel of git(['ls-files','--others','--ignored','--exclude-standard','-z','--','android/app/src/test/resources']).split('\0').filter(Boolean)) {
+      if(!rel.startsWith('android/app/src/test/resources/')) throw Error('测试资源路径越界');
+      await fs.mkdir(path.dirname(path.join(source,rel)),{recursive:true});
+      await fs.copyFile(path.join(root,rel),path.join(source,rel));
+      const digest=await sha256(path.join(root,rel));
+      if(digest!==await sha256(path.join(source,rel))) throw Error('测试资源复制校验失败');
+      report.privateFixtures.push({path:rel,sha256:digest});
+    }
     // 签名配置只进入被忽略的构建位置；密钥库保持外部路径。
     await fs.copyFile(path.join(root,'android/keystore.properties'),path.join(source,'android/keystore.properties'));
     await node('历史密钥与私人路径扫描',['tools/security.mjs','--history']);
