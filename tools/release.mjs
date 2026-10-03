@@ -143,6 +143,16 @@ async function main() {
     const after=await Promise.all(protectedInputs.map(fingerprint));
     if(JSON.stringify(before)!==JSON.stringify(after)) throw Error('正式曲库或凭据在验收期间发生变化，请核对来源');
     report.protectedInputsUnchanged=true;
+    // 成功后回收 UI 测试的曲库副本；保留截图、日志、源码和候选成品。
+    const qa=path.resolve(source,'qa');
+    if(path.dirname(qa)!==path.resolve(source) || !qa.startsWith(path.resolve(area)+path.sep)) throw Error('测试清理路径越界');
+    for(const entry of await fs.readdir(qa,{withFileTypes:true})) {
+      if(!entry.isDirectory() || !/^自用验收 \d+$/.test(entry.name)) continue;
+      const testData=path.resolve(qa,entry.name,'data');
+      if(!testData.startsWith(qa+path.sep)) throw Error('测试曲库清理路径越界');
+      await fs.rm(testData,{recursive:true,force:true});
+    }
+    report.testLibraryCopiesCleaned=true;
     report.status='passed'; report.finishedAt=new Date().toISOString(); await save();
     console.log('候选包验收通过：'+reportPath);
     console.log('上传前需选定未使用的版本标签、检查 Android 升级版本号并由负责人确认。');
