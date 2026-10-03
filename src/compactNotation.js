@@ -248,11 +248,13 @@ export function decodeCompactRows(value,options){
   // 跨行组：字母不参与配对——每两行之间最多只可能有一条跨行连接，位置本身已经确定了连接，
   // 字母只用来核对两端写的是同一个组。真正的连接要等整页的行都到齐，在 convertRows 里接。
   // 只出现一次的字母才是跨行标记；行内成对的字母上面已经按行内组处理。
-  const openGroups=[],incomingGroups=[];
+  const openGroups=[],incomingGroups=[],undirectedGroups=[];
   for(const {letter,eventId} of letters){
    if(letterCounts.get(letter)>1)continue;
-   if(eventId===lastNote)openGroups.push(letter);
-   else if(eventId===firstNote&&firstNote!==lastNote)incomingGroups.push(letter);
+   // 单音符行的首尾相同；只保留标记，等整页（含其他批次）齐全后再判断方向。
+   if(eventId===firstNote&&firstNote===lastNote)undirectedGroups.push(letter);
+   else if(eventId===lastNote)openGroups.push(letter);
+   else if(eventId===firstNote)incomingGroups.push(letter);
    else problem(issues,'group-cross-row-misplaced',eventId,'symbols','跨行标记「('+letter+')」只写在本行末音与下一行首音上，此处已忽略');
   }
   const arcs=[];
@@ -285,6 +287,7 @@ export function decodeCompactRows(value,options){
   return {rowId:r.rowId,events,notes,arcs,tuplets,issues,...(r.meterMarks?{meterMarks}:{}),
    // 跨行标记透传给 convertRows：真正连哪两个音要等整页的行都在手上才能定（行批次之间也可能相连）。
    ...(openGroups.length?{openGroups:[openGroups[0]]}:{}),...(incomingGroups.length?{incomingGroups:[incomingGroups[0]]}:{}),
+   ...(undirectedGroups.length?{undirectedGroups:[undirectedGroups[0]]}:{}),
    lyrics:list(r.lyrics).map((text,i)=>{if(typeof text!=='string')fail('歌词文本');return {id:'ly'+(i+1),lineIndex:i+1,units:[{text,eventIds:null}]};})};
  });
  // 引用按音符序号解析：只数音符，休止、横线、小节线、读不出的位置都不占号（与 SOP 一致）。
