@@ -16,9 +16,11 @@ export function options(args) {
   if (!out['--ref'] || !/^[A-Za-z0-9][A-Za-z0-9._/-]*$/.test(out['--ref'])) throw Error('必须指定 --ref <已提交版本或标签>');
   return out;
 }
-async function fingerprint(directory) {
+export async function fingerprint(directory) {
   const files = (await filesIn(directory)).filter(p => !/(^|\/)(\.lock|\.instance\.json)$/.test(p));
-  return Promise.all(files.map(async p => ({path:p, sha256:await sha256(path.join(directory,p))})));
+  const result=[];
+  for(let i=0;i<files.length;i+=16) result.push(...await Promise.all(files.slice(i,i+16).map(async p=>({path:p,sha256:await sha256(path.join(directory,p))}))));
+  return result;
 }
 async function main() {
   if (process.platform !== 'win32') throw Error('正式签名与便携包验收目前要求 Windows');
