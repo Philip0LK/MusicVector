@@ -168,7 +168,9 @@ function Training({doc:originalDocument}){
  const sourceTarget=(index=latest.current.cursor)=>{
   const note=notes[index];if(!note)return null;const r=doc.rows[note.row],img=imgs.current[r.page];if(!img?.naturalWidth||!img.clientHeight)return null;
   const c=cropRect(r.crop,img.naturalWidth,img.naturalHeight),b=img.getBoundingClientRect(),pageOnly=!r.crop||c.invalid;
-  return {key:pageOnly?'page:'+r.page:r.id,pageOnly,pageRect:b,rect:{top:b.top+b.height*c.y,bottom:b.top+b.height*(c.y+c.height),left:b.left+b.width*c.x,right:b.left+b.width*(c.x+c.width),height:b.height*c.height}};
+  // Page-level mapping uses the page start for both following and the return affordance.
+  const top=pageOnly?b.top:b.top+b.height*c.y,height=pageOnly?Math.min(24,b.height):b.height*c.height;
+  return {key:pageOnly?'page:'+r.page:r.id,pageOnly,pageRect:b,rect:{top,bottom:top+height,left:b.left+b.width*c.x,right:b.left+b.width*(c.x+c.width),height}};
  };
  const scoreTarget=(index=latest.current.cursor)=>{
   const el=main.current?.querySelector(`.engraved-note[data-global-index="${index}"]`);if(!el)return null;

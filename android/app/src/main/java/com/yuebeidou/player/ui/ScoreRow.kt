@@ -603,7 +603,6 @@ private fun DrawScope.drawArcs(
 ) {
     if (row.arcs.isEmpty()) return
     val centers = HashMap<Int, Float>()
-    val clips = HashMap<Int, Pair<Float, Float>>()
     val visible = HashSet<Int>()
     segments.forEachIndexed { index, segment ->
         val layout = layouts[index]
@@ -613,13 +612,13 @@ private fun DrawScope.drawArcs(
             val x = measureX + layout.positions[noteIndex].cx.px(scale)
             val clip = measureOffsets[index] to measureOffsets[index + 1]
             centers[note] = x.coerceIn(clip.first, clip.second)
-            clips[note] = clip
             if (x in clip.first..clip.second) visible.add(note)
         }
     }
     val rowWidth = measureOffsets.lastOrNull() ?: 0f
     for (arc in row.arcs) {
-        if (arc.start != null && arc.end != null && arc.start !in visible && arc.end !in visible && clips[arc.start] == clips[arc.end]) continue
+        // Keep the visible middle of a connection spanning opposite viewport edges.
+        if (arc.start != null && arc.end != null && arc.start !in visible && arc.end !in visible && centers[arc.start] == centers[arc.end]) continue
         val x1 = arc.start?.let { centers[it] } ?: 0f
         val x2 = arc.end?.let { centers[it] } ?: rowWidth
         val y = arcSpace + 22f * scale - arc.level * 6f * scale
