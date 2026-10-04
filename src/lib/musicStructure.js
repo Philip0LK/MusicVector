@@ -1,4 +1,5 @@
 import {connectionTuplets} from './notationFeatures.js';
+import {tonicSemitoneOffset} from './pitchKey.js';
 
 import * as R from "./rational.js";
 
@@ -7,7 +8,6 @@ export const DEFAULT_TICKS_PER_QUARTER = 24;
 export const STRUCTURE_BASE_TICKS = Object.freeze([6, 12, 24, 48, 96]);
 const BASE_TICKS = new Set(STRUCTURE_BASE_TICKS);
 const KNOWN_TUPLET_RATIOS = new Set(["2:3", "3:2", "4:3", "5:4", "6:4", "7:4"]);
-const NOTE_OFFSETS = { C: 0, "C#": 1, Db: 1, D: 2, "D#": 3, Eb: 3, E: 4, F: 5, "F#": 6, Gb: 6, G: 7, "G#": 8, Ab: 8, A: 9, "A#": 10, Bb: 10, B: 11 };
 const DEGREE_STEPS = [null, 0, 2, 4, 5, 7, 9, 11];
 
 export function makeDiagnostic(code, message, details = {}, severity = "error") {
@@ -162,7 +162,7 @@ export function parsePitchKey(value, fallbackOctave = 4) {
 
 function pitchKeyFromParts(tonicText, octave) {
   const normalized = tonicText.charAt(0).toUpperCase() + tonicText.slice(1);
-  const offset = NOTE_OFFSETS[normalized] ?? 0;
+  const offset = tonicSemitoneOffset(normalized) ?? 0;
   const safeOctave = Number.isInteger(Number(octave)) ? Number(octave) : 4;
   return {
     key: `1=${normalized}${safeOctave}`,

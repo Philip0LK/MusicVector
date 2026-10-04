@@ -7,15 +7,16 @@ package com.yuebeidou.player.model
 object Pitch {
     private val DEGREE_STEPS = intArrayOf(0, 0, 2, 4, 5, 7, 9, 11)
 
-    private val NOTE_OFFSETS = mapOf(
-        "C" to 0, "C#" to 1, "Db" to 1,
-        "D" to 2, "D#" to 3, "Eb" to 3,
-        "E" to 4,
-        "F" to 5, "F#" to 6, "Gb" to 6,
-        "G" to 7, "G#" to 8, "Ab" to 8,
-        "A" to 9, "A#" to 10, "Bb" to 10,
-        "B" to 11,
+    private val NATURAL_STEPS = mapOf(
+        'C' to 0, 'D' to 2, 'E' to 4, 'F' to 5, 'G' to 7, 'A' to 9, 'B' to 11,
     )
+
+    // Cb is below C and B# crosses into the next octave; do not wrap modulo 12.
+    private fun tonicOffset(tonic: String): Int? {
+        if (!Regex("[A-G](?:#|b)?").matches(tonic)) return null
+        val accidental = when (tonic.last()) { '#' -> 1; 'b' -> -1; else -> 0 }
+        return NATURAL_STEPS.getValue(tonic.first()) + accidental
+    }
 
     /** 与电脑端 parsePitchKey 同源：接受 "1=E4"、"E4"、"E" 三种写法。 */
     fun parseKey(key: String, fallbackOctave: Int = 4): Pair<String, Int> {
@@ -25,7 +26,7 @@ object Pitch {
         if (match == null) return "C" to fallbackOctave
         val tonic = match.groupValues[1].let { if (it.isEmpty()) "C" else it[0].uppercase() + it.substring(1) }
         val octave = match.groupValues[2].takeIf { it.isNotEmpty() }?.toIntOrNull() ?: fallbackOctave
-        return (if (NOTE_OFFSETS.containsKey(tonic)) tonic else "C") to octave
+        return (if (tonicOffset(tonic) != null) tonic else "C") to octave
     }
 
     fun label(key: String, octave: Int): String {
@@ -35,7 +36,7 @@ object Pitch {
 
     fun tonicMidi(key: String, octave: Int): Int {
         val (tonic, safeOctave) = parseKey(key, octave)
-        return (safeOctave + 1) * 12 + (NOTE_OFFSETS[tonic] ?: 0)
+        return (safeOctave + 1) * 12 + (tonicOffset(tonic) ?: 0)
     }
 
     /** 休止符返回 null（电脑端 pitchep[midi] = null 时不发声）。 */

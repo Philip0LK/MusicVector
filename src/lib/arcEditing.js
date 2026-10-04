@@ -1,4 +1,6 @@
 import {normalizeMusicDocument} from './musicStructure.js';
+export const isRhythmEvent=note=>Number.isInteger(note?.degree)&&note.degree>=0&&note.degree<=7;
+export const arcEndpointAllowed=(note,number=null)=>isRhythmEvent(note)&&(Boolean(number)||note.degree>0);
 export function canonicalArcs(document,options={}){
  const source=structuredClone(document);
  if(options.key!==undefined)source.key=options.key;
@@ -9,7 +11,7 @@ export function canonicalArcs(document,options={}){
 }
 export function putArc(document,arc){
  const next=canonicalArcs(document),notes=next.rows.flatMap(r=>r.notes),a=notes.findIndex(n=>n.id===arc.fromNoteId),b=notes.findIndex(n=>n.id===arc.toNoteId);
- if(a<0||b===a||b<0||(!arc.number&&(!notes[a].degree||!notes[b].degree)))throw Error('请选择两个不同音符');
+ if(a<0||b===a||b<0||!arcEndpointAllowed(notes[a],arc.number)||!arcEndpointAllowed(notes[b],arc.number))throw Error('请选择两个可用的不同端点；普通连接须使用发声音符');
  if(a>b)arc={...arc,fromNoteId:arc.toNoteId,toNoteId:arc.fromNoteId};
  next.structureDiagnostics=(next.structureDiagnostics||[]).filter(d=>!(d.code==='SEAM_RELATION_CHANGED'&&d.fromNoteId===arc.fromNoteId&&d.toNoteId===arc.toNoteId));
  next.music.arcs=next.music.arcs.filter(v=>v.id!==arc.id&&!(v.fromNoteId===arc.fromNoteId&&v.toNoteId===arc.toNoteId));

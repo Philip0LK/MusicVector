@@ -1,23 +1,5 @@
+import {tonicSemitoneOffset} from './pitchKey.js';
 const DEGREE_STEPS = [null, 0, 2, 4, 5, 7, 9, 11];
-const NOTE_OFFSETS = {
-  C: 0,
-  "C#": 1,
-  Db: 1,
-  D: 2,
-  "D#": 3,
-  Eb: 3,
-  E: 4,
-  F: 5,
-  "F#": 6,
-  Gb: 6,
-  G: 7,
-  "G#": 8,
-  Ab: 8,
-  A: 9,
-  "A#": 10,
-  Bb: 10,
-  B: 11,
-};
 
 export function parseJianpuSequence(input) {
   return parseJianpuSequenceWithSpans(input).map((item) => item.note);
@@ -237,7 +219,7 @@ function keyToMidiRoot(key) {
 
   const tonic = match[1].charAt(0).toUpperCase() + match[1].slice(1);
   const octave = match[2] === undefined ? 4 : Number(match[2]);
-  const offset = NOTE_OFFSETS[tonic] ?? NOTE_OFFSETS.C;
+  const offset = tonicSemitoneOffset(tonic) ?? 0;
   return (octave + 1) * 12 + offset;
 }
 

@@ -176,25 +176,7 @@ export function decodeCompactRows(value,options){
   // 连音组标记：数字是行内组、字母是跨行组（写法见 SOP）。这里只做三件事——
   // 判定每个标记是否可用、按同类去重、把可用标记归到"行内组号"或"跨行字母"两处。
   // 组的范围由两个端点之间的全部音符决定（与既有连音组语义一致），所以下面只产出两个端点。
-  const position=new Map(notes.map((id,i)=>[id,i+1]));
   const firstNote=notes[0]??null,lastNote=notes[notes.length-1]??null;
-  const byNumber=new Map(),letters=[],slot=new Map();
-  for(const mark of marks){
-   const text=String(mark.content??'').trim().toLowerCase();
-   if(mark.targetKind!=='note'){
-    // 标记没落在音符上：休止符上的单独记（谱面上确有把连音线画到休止符的写法），其他位置记为无效。
-    problem(issues,mark.targetKind==='rest'?'group-mark-on-rest':'group-mark-invalid',mark.targetId,'symbols','连音组标记「('+mark.content+')」不在音符上');
-    continue;
-   }
-   const kind=/^\d{1,2}$/.test(text)&&Number(text)>=1?'digit':/^[a-z]$/.test(text)?'letter':null;
-   if(!kind){problem(issues,'group-mark-invalid',mark.targetId,'symbols','连音组标记「('+mark.content+')」读不出组号');continue;}
-   if(mark.detached)problem(issues,'group-mark-detached',mark.targetId,'symbols','连音组标记「('+mark.content+')」与音符之间有空隙，已按最近的音符处理');
-   const key=mark.targetId+':'+kind;
-   if(slot.has(key)){problem(issues,'group-mark-duplicated',mark.targetId,'symbols','同一个音符上有两个同类连音组标记，只采用「('+slot.get(key)+')」');continue;}
-   slot.set(key,text);
-   if(kind==='digit'){const number=Number(text);if(!byNumber.has(number))byNumber.set(number,[]);byNumber.get(number).push(mark.targetId);}
-   else letters.push({letter:text,eventId:mark.targetId});
-  }
   // groupNumbers 只登记"要按连音比例演奏"的组：[组号,连音数]。三种写法都收（成对数组、单个对、对象映射），
   // 因为这一项是附加信息，写法上的小差异不该让整组连音数丢掉。值写 null 等于明说"这组是普通连接"。
   const tupletNumbers=new Map(),rawGroups=r.groupNumbers??[];
@@ -210,6 +192,23 @@ export function decodeCompactRows(value,options){
    if(!Number.isInteger(entry[1])||entry[1]<2||entry[1]>16){problem(issues,'group-mark-invalid',null,'groupNumbers','组 ('+number+') 的连音数 '+JSON.stringify(entry[1])+' 无效');continue;}
    if(tupletNumbers.has(number)){problem(issues,'group-mark-duplicated',null,'groupNumbers','组 ('+number+') 的连音数给了两次，只采用第一个');continue;}
    tupletNumbers.set(number,entry[1]);
+  }
+  const byNumber=new Map(),letters=[],slot=new Map();
+  for(const mark of marks){
+   const text=String(mark.content??'').trim().toLowerCase();
+   if(mark.targetKind!=='note'&&!(mark.targetKind==='rest'&&/^\d{1,2}$/.test(text)&&tupletNumbers.has(Number(text)))){
+    // 带数字的节奏分组允许休止端点；普通连接仍只接受发声音符。
+    problem(issues,mark.targetKind==='rest'?'group-mark-on-rest':'group-mark-invalid',mark.targetId,'symbols','连音组标记「('+mark.content+')」不在音符上');
+    continue;
+   }
+   const kind=/^\d{1,2}$/.test(text)&&Number(text)>=1?'digit':/^[a-z]$/.test(text)?'letter':null;
+   if(!kind){problem(issues,'group-mark-invalid',mark.targetId,'symbols','连音组标记「('+mark.content+')」读不出组号');continue;}
+   if(mark.detached)problem(issues,'group-mark-detached',mark.targetId,'symbols','连音组标记「('+mark.content+')」与音符之间有空隙，已按最近的音符处理');
+   const key=mark.targetId+':'+kind;
+   if(slot.has(key)){problem(issues,'group-mark-duplicated',mark.targetId,'symbols','同一个音符上有两个同类连音组标记，只采用「('+slot.get(key)+')」');continue;}
+   slot.set(key,text);
+   if(kind==='digit'){const number=Number(text);if(!byNumber.has(number))byNumber.set(number,[]);byNumber.get(number).push(mark.targetId);}
+   else letters.push({letter:text,eventId:mark.targetId});
   }
   // 行内组：两个端点成组，缺一端时的处置只按"右邻音符/行末"两种可判定情形分流，不猜更远的音。
   // 字母标记本来只用于跨行，但实测模型也会用字母标行内的一对音（同一行里同一个字母出现两次）：
@@ -230,18 +229,18 @@ export function decodeCompactRows(value,options){
     if(tuplet!==null){
      // 连音数已知却只标出一个端点：组的范围无从确定，交回用户重设（沿用既有"待确认连接"入口）。
      problem(issues,'group-open-unresolved',only,'symbols','连音组 ('+label+') 只标出一个端点，范围待确认');
-     groupArcs.push({id:'g'+(++groupSeq),start:{rowId:r.rowId,position:position.get(only)},end:null,number:tuplet});
+     groupArcs.push({id:'g'+(++groupSeq),start:{rowId:r.rowId,eventId:only},end:null,number:tuplet});
     }else if(only!==lastNote){
      // 普通连接只缺一端：补到它右边紧邻的那个音符，用户可在修正界面改掉。
      const next=notes[notes.indexOf(only)+1];
      problem(issues,'group-endpoint-completed',only,'symbols','连音组 ('+label+') 只标出一个端点，已补到它右边的音符');
-     groupArcs.push({id:'g'+(++groupSeq),start:{rowId:r.rowId,position:position.get(only)},end:{rowId:r.rowId,position:position.get(next)},number:null});
+     groupArcs.push({id:'g'+(++groupSeq),start:{rowId:r.rowId,eventId:only},end:{rowId:r.rowId,eventId:next},number:null});
     }else problem(issues,'group-open-unresolved',only,'symbols','连音组 ('+label+') 只标出一个端点且在行末，本行无法补全');
    }else{
     // 同一组号标了两处以上：只取最左边的两个端点（其余落点无法判定属于哪一组，只能留档）。
     const pair=ends.length>2?ends.slice(0,2):ends;
     if(ends.length>2)problem(issues,'group-number-reused',pair[0],'symbols','编号 ('+label+') 出现了 '+ends.length+' 次，只取最左边的两个端点');
-    groupArcs.push({id:'g'+(++groupSeq),start:{rowId:r.rowId,position:position.get(pair[0])},end:{rowId:r.rowId,position:position.get(pair[1])},number:tuplet});
+    groupArcs.push({id:'g'+(++groupSeq),start:{rowId:r.rowId,eventId:pair[0]},end:{rowId:r.rowId,eventId:pair[1]},number:tuplet});
    }
   }
   for(const number of tupletNumbers.keys())if(!byNumber.has(number))problem(issues,'group-number-unmatched',null,'groupNumbers','连音数里的组 ('+number+') 在本行没有对应标记');
@@ -290,13 +289,13 @@ export function decodeCompactRows(value,options){
    ...(undirectedGroups.length?{undirectedGroups:[undirectedGroups[0]]}:{}),
    lyrics:list(r.lyrics).map((text,i)=>{if(typeof text!=='string')fail('歌词文本');return {id:'ly'+(i+1),lineIndex:i+1,units:[{text,eventIds:null}]};})};
  });
- // 引用按音符序号解析：只数音符，休止、横线、小节线、读不出的位置都不占号（与 SOP 一致）。
+ // 组标记已经引用真实事件 ID；旧格式的数字引用按音符序号解析：只数音符，休止、横线、小节线、读不出的位置都不占号（与 SOP 一致）。
  // 解析不到的音符记为未知并标待确认：保留原始响应，不猜测邻近音符，也不丢弃有效符号序列。
  const refEventsByRow=new Map(rows.map(r=>[r.rowId,r.notes]));
  const noteId=(rowId,position)=>refEventsByRow.get(rowId)?.[position-1]??null;
  for(const r of rows){
   for(const arc of r.arcs)for(const field of ['start','end']){
-   const end=arc[field];if(!end)continue;
+   const end=arc[field];if(!end||end.eventId)continue;
    const eventId=noteId(end.rowId,end.position);
    if(!eventId)problem(r.issues,'clipped-connection',arc.id,field,'无效弧线端点 '+end.rowId+' 第 '+end.position+' 个音符');
    arc[field]=eventId?{rowId:end.rowId,eventId}:null;

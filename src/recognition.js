@@ -13,7 +13,7 @@ import {decodeCompactPage} from './pageRecognition.js';
 const section=name=>new RegExp(`\\n## ${name}[^\\n]*\\n([\\s\\S]*?)(?=\\n## |$)`).exec('\n'+sop)?.[1].trim()??'';
 const promptA=section('提示词 A：'),promptB=section('提示词 B：'),promptC=section('提示词 C：');
 if(!promptA||!promptB||!promptC)throw Error('提示词文件缺少提示词段落');
-export const PROMPT_VERSION='2.8-note-group-marks-2026-09-20';
+export const PROMPT_VERSION='2.9-rest-tuplet-endpoints-2026-10-04';
 async function sha(bytes){return [...new Uint8Array(await crypto.subtle.digest('SHA-256',bytes))].map(b=>b.toString(16).padStart(2,'0')).join('');}
 // 原始数据归档：每次识别（成功或失败）把请求参数、裁切、每批调用与原始返回交给开发服务器落盘。
 // 归档失败不影响识别本身，也不带 abortSignal：用户中途终止时同样要留下已收到的原始返回。
