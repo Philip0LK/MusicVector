@@ -30,13 +30,19 @@ To move to another computer: stop the program first, then copy the entire 乐北
 
 Backup: stop the program, then copy the whole `data` folder to a safe place. Restore: stop the program, first save the current `data` somewhere else, then replace it with the complete backup. Do not mix individual files from different backups. `data/backups` keeps the relevant files from before each change, for troubleshooting; it is not a complete library backup. Unfinished transactions are recovered automatically the next time you start the program.
 
+To update the portable version, stop the program and back up `data`, then copy the new program files into the same directory. Keep the existing `data` and `private` folders. Do not overwrite your `data` with an empty or bundled library from the new package. Restarting uses your existing library, drafts and practice settings.
+
 ## Phone app
 
 Install `Android/MusicVector.apk` on your phone. If an Android phone already has the app, is connected over USB and allows USB debugging, it opens together with the start command — the app is never installed or overwritten automatically. Leaving the phone unplugged does not affect use on the computer.
 
+To update the phone app, install the new APK over the same app. Your library and practice settings remain. Do not uninstall the app or clear its data first, as that removes the phone library.
+
 On the computer, click **发送到手机** ("Send to phone") and scan the QR code with the phone app. The phone and computer should be on the same Wi-Fi network; if Windows Firewall asks, allow access on trusted private networks only. The QR code is valid for ten minutes, and closing the send panel releases it; only this one temporary song can be collected, and neither your library nor your key is reachable from the local network. If there is a port conflict the program switches ports automatically — use the QR code generated this time.
 
 ## Recognition and playback
+
+After you start playback, the original score and practice score follow the current position independently on desktop; the shared list follows the current note on Android. Scrolling or dragging gives you control of that view while the music continues. Loops, speed changes and pause/resume keep your chosen view. Click **回到当前音** ("Return to current note") to resume following; double-click it on desktop to restore both panes. **从头播放** ("Play from the beginning") restores following. Opening a song still requires you to press Play before sound starts.
 
 Recognition still needs an internet connection to call the model, and you must verify your own API key in the settings. The geometry analysis runs on this computer, and the recognition results and process records are saved locally; a failure is not retried automatically. If the program closes unexpectedly, the saved part is kept and marked as interrupted.
 

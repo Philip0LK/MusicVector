@@ -4,15 +4,27 @@ import android.graphics.Paint
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.sizeIn
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.ui.Alignment
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
@@ -26,9 +38,14 @@ import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInParent
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextMeasurer
@@ -81,6 +98,11 @@ fun ScoreRowItem(
     activeIndex: Int,
     range: IntRange?,
     onNoteTap: (Int) -> Unit,
+    follow: Boolean = false,
+    revealToken: Int = 0,
+    revealIndex: Int? = null,
+    onBrowse: () -> Unit = {},
+    onNotationArea: (NotationArea) -> Unit = {},
 ) {
     Column(Modifier.fillMaxWidth().background(ROW_BACKGROUND)) {
         ImageBand(image = image, row = row)
@@ -92,6 +114,11 @@ fun ScoreRowItem(
                 activeIndex = activeIndex,
                 range = range,
                 onNoteTap = onNoteTap,
+                follow = follow,
+                revealToken = revealToken,
+                revealIndex = revealIndex,
+                onBrowse = onBrowse,
+                onNotationArea = onNotationArea,
             )
         }
     }
@@ -223,6 +250,11 @@ private fun NotationRow(
     activeIndex: Int,
     range: IntRange?,
     onNoteTap: (Int) -> Unit,
+    follow: Boolean,
+    revealToken: Int,
+    revealIndex: Int?,
+    onBrowse: () -> Unit,
+    onNotationArea: (NotationArea) -> Unit,
 ) {
     val density = LocalDensity.current
     val measurer = rememberTextMeasurer()
@@ -245,8 +277,29 @@ private fun NotationRow(
         if (row.arcs.isEmpty()) 0f else (12 + row.arcs.maxOf { it.level } * 10) * scale
     }
     val heightPx = arcSpace + MEASURE_UNIT_HEIGHT * scale + 6f * scale
-    val hitAreas = remember(segments, layouts, widths, scale) {
-        buildHitAreas(segments, layouts, widths, row.startNoteIndex, scale)
+    val pans = remember(row.index) { mutableStateMapOf<Int, Float>() }
+    var browsedMeasure by remember(row.index) { mutableIntStateOf(-1) }
+    val scrollOffsets = layouts.mapIndexed { i, layout ->
+        (pans[i] ?: 0f).coerceIn(0f, ((layout.content - widths[i]).px(scale)).coerceAtLeast(0f))
+    }
+    val hitAreas = buildHitAreas(segments, layouts, widths, row.startNoteIndex, scale, scrollOffsets, arcSpace)
+    val latestHits by rememberUpdatedState(hitAreas)
+    val latestTap by rememberUpdatedState(onNoteTap)
+    val latestBrowse by rememberUpdatedState(onBrowse)
+    val latestOffsets by rememberUpdatedState(scrollOffsets)
+    LaunchedEffect(activeIndex, follow, revealToken, revealIndex, widthPx, fontSizePx) {
+        if (widthPx <= 0f) return@LaunchedEffect
+        val explicit = revealIndex != null
+        val target = if (explicit) revealIndex!! else if (follow) activeIndex else return@LaunchedEffect
+        val local = target - row.startNoteIndex
+        val i = segments.indexOfFirst { local >= it.start && local < it.start + it.notes.size }
+        if (i < 0) return@LaunchedEffect
+        browsedMeasure = -1
+        val p = layouts[i].positions[local - segments[i].start]
+        val before = scrollOffsets[i]
+        val delta = FollowGeometry.scrollDelta(p.x.px(scale), p.end.px(scale), before + 6f, before + widths[i].px(scale) - 6f)
+        val after = (before + delta).coerceIn(0f, (layouts[i].content - widths[i]).px(scale).coerceAtLeast(0f))
+        if (kotlin.math.abs(after - before) > 0.5f) pans[i] = after
     }
     val measureOffsets = remember(widths, scale) {
         val offsets = ArrayList<Float>(widths.size + 1)
@@ -256,22 +309,45 @@ private fun NotationRow(
         offsets
     }
 
+    Column(Modifier.fillMaxWidth().onGloballyPositioned {
+        onNotationArea(NotationArea(it.positionInParent().y, heightPx))
+    }) {
     Canvas(
         Modifier
             .fillMaxWidth()
             .height(with(density) { heightPx.toDp() })
             .onSizeChanged { widthPx = it.width.toFloat() }
-            .pointerInput(row.index, hitAreas) {
+            .pointerInput(row.index) {
                 detectTapGestures { position ->
-                    hitAreas.firstOrNull { it.rect.contains(position) }?.let { onNoteTap(it.noteIndex) }
+                    latestHits.firstOrNull { it.rect.contains(position) }?.let { latestTap(it.noteIndex) }
                 }
+            }
+            .pointerInput(row.index, layouts, widths, scale) {
+                var dragged = -1
+                detectHorizontalDragGestures(
+                    onDragStart = { p -> dragged = segments.indices.firstOrNull {
+                        p.x >= measureOffsets[it] && p.x < measureOffsets[it + 1] && layouts[it].overflow
+                    } ?: -1 },
+                    onDragEnd = { dragged = -1 },
+                    onDragCancel = { dragged = -1 },
+                    onHorizontalDrag = { change, delta ->
+                        val i = dragged
+                        if (i >= 0) {
+                            change.consume()
+                            val before = latestOffsets[i]
+                            val after = (before - delta).coerceIn(0f, (layouts[i].content - widths[i]).px(scale).coerceAtLeast(0f))
+                            if (kotlin.math.abs(after - before) > 0.5f) { latestBrowse(); browsedMeasure = i; pans[i] = after }
+                        }
+                    },
+                )
             },
     ) {
         val baseY = arcSpace
         segments.forEachIndexed { index, segment ->
             val layout = layouts[index]
-            val measureX = measureOffsets[index]
+            val measureX = measureOffsets[index] - scrollOffsets[index]
             val local = activeIndex - row.startNoteIndex - segment.start
+            clipRect(measureOffsets[index], 0f, measureOffsets[index + 1], size.height) {
             if (segment.measure.meterChange) {
                 drawTextAt(
                     measurer = measurer,
@@ -305,9 +381,35 @@ private fun NotationRow(
                     1f * scale,
                 )
             }
+            }
         }
-        drawRangeHandles(range, segments, layouts, measureOffsets, scale, arcSpace, row.startNoteIndex)
-        drawArcs(row, segments, layouts, scale, arcSpace, measureOffsets)
+        drawRangeHandles(range, segments, layouts, measureOffsets, scale, arcSpace, row.startNoteIndex, scrollOffsets)
+        drawArcs(row, segments, layouts, scale, arcSpace, measureOffsets, scrollOffsets)
+    }
+    val activeMeasure = segments.indexOfFirst {
+        activeIndex - row.startNoteIndex in it.start until it.start + it.notes.size
+    }
+    val controlledMeasure = when {
+        !follow && browsedMeasure in layouts.indices && layouts[browsedMeasure].overflow -> browsedMeasure
+        activeMeasure in layouts.indices && layouts[activeMeasure].overflow -> activeMeasure
+        else -> layouts.indexOfFirst { it.overflow }
+    }
+    if (controlledMeasure >= 0) {
+        val i = controlledMeasure
+        val layout = layouts[i]
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically) {
+            fun browseBy(delta: Float) {
+                val before = scrollOffsets[i]
+                val after = (before + delta).coerceIn(0f, (layout.content - widths[i]).px(scale).coerceAtLeast(0f))
+                if (kotlin.math.abs(after - before) > 0.5f) { onBrowse(); browsedMeasure = i; pans[i] = after }
+            }
+            TextButton(onClick = { browseBy(-widths[i].px(scale) * .7f) }, enabled = scrollOffsets[i] > .5f,
+                contentPadding = PaddingValues(0.dp), modifier = Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp).semantics { contentDescription = "向左浏览小节" }) { Text("‹") }
+            TextButton(onClick = { browseBy(widths[i].px(scale) * .7f) }, enabled = scrollOffsets[i] < (layout.content - widths[i]).px(scale) - .5f,
+                contentPadding = PaddingValues(0.dp), modifier = Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp).semantics { contentDescription = "向右浏览小节" }) { Text("›") }
+        }
+    }
     }
 }
 
@@ -375,6 +477,8 @@ private fun buildHitAreas(
     widths: List<Double>,
     rowStartNoteIndex: Int,
     scale: Float,
+    scrollOffsets: List<Float>,
+    arcSpace: Float,
 ): List<HitArea> {
     val areas = mutableListOf<HitArea>()
     var measureX = 0f
@@ -388,10 +492,12 @@ private fun buildHitAreas(
             } else {
                 layout.content.px(scale)
             }
-            areas.add(
+            val clippedLeft = maxOf(measureX, measureX + left - scrollOffsets[index])
+            val clippedRight = minOf(measureX + widths[index].px(scale), measureX + right - scrollOffsets[index])
+            if (clippedRight > clippedLeft) areas.add(
                 HitArea(
                     noteIndex = rowStartNoteIndex + segment.start + noteIndex,
-                    rect = Rect(measureX + left, 23f * scale, measureX + right, 85f * scale),
+                    rect = Rect(clippedLeft, arcSpace + 23f * scale, clippedRight, arcSpace + 85f * scale),
                 ),
             )
         }
@@ -464,11 +570,13 @@ private fun DrawScope.drawRangeHandles(
     scale: Float,
     arcSpace: Float,
     rowStartNoteIndex: Int,
+    scrollOffsets: List<Float>,
 ) {
     if (range == null) return
     segments.forEachIndexed { index, segment ->
         val layout = layouts[index]
-        val measureX = measureOffsets[index]
+        val measureX = measureOffsets[index] - scrollOffsets[index]
+        clipRect(measureOffsets[index], 0f, measureOffsets[index + 1], size.height) {
         segment.notes.forEachIndexed { noteIndex, _ ->
             val global = rowStartNoteIndex + segment.start + noteIndex
             val isStart = global == range.first
@@ -480,6 +588,7 @@ private fun DrawScope.drawRangeHandles(
                 drawCircle(ACCENT, 3.5f * scale, Offset(x, arcSpace + (if (isStart) 26f else 79f) * scale))
             }
         }
+        }
     }
 }
 
@@ -490,18 +599,26 @@ private fun DrawScope.drawArcs(
     scale: Float,
     arcSpace: Float,
     measureOffsets: List<Float>,
+    scrollOffsets: List<Float>,
 ) {
     if (row.arcs.isEmpty()) return
     val centers = HashMap<Int, Float>()
+    val visible = HashSet<Int>()
     segments.forEachIndexed { index, segment ->
         val layout = layouts[index]
-        val measureX = measureOffsets[index]
+        val measureX = measureOffsets[index] - scrollOffsets[index]
         segment.notes.forEachIndexed { noteIndex, _ ->
-            centers[segment.start + noteIndex] = measureX + layout.positions[noteIndex].cx.px(scale)
+            val note = segment.start + noteIndex
+            val x = measureX + layout.positions[noteIndex].cx.px(scale)
+            val clip = measureOffsets[index] to measureOffsets[index + 1]
+            centers[note] = x.coerceIn(clip.first, clip.second)
+            if (x in clip.first..clip.second) visible.add(note)
         }
     }
     val rowWidth = measureOffsets.lastOrNull() ?: 0f
     for (arc in row.arcs) {
+        // Keep the visible middle of a connection spanning opposite viewport edges.
+        if (arc.start != null && arc.end != null && arc.start !in visible && arc.end !in visible && centers[arc.start] == centers[arc.end]) continue
         val x1 = arc.start?.let { centers[it] } ?: 0f
         val x2 = arc.end?.let { centers[it] } ?: rowWidth
         val y = arcSpace + 22f * scale - arc.level * 6f * scale

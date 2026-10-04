@@ -59,6 +59,11 @@ class PracticeSession(
     var anchor by mutableStateOf<Int?>(null)
         private set
     var follow by mutableStateOf(true)
+        private set
+    var revealToken by mutableStateOf(0)
+        private set
+    var revealIndex by mutableStateOf<Int?>(null)
+        private set
     var notice by mutableStateOf("")
         private set
     var noticeToken by mutableStateOf(0)
@@ -75,6 +80,21 @@ class PracticeSession(
     val isActive: Boolean
         get() = status == Status.Playing || status == Status.Waiting ||
             status == Status.Loading || status == Status.Audition
+
+    val isAutoPlaying: Boolean
+        get() = status == Status.Playing || status == Status.Waiting || status == Status.Loading
+
+    fun browse() {
+        follow = false
+        // Cancel a pending one-shot reveal as well as continuous following.
+        revealIndex = null
+    }
+
+    private fun requestReveal(index: Int) {
+        revealIndex = PracticeRules.clampIndex(index, noteCount)
+        revealRow = PracticeRules.rowOfNote(manifest, index)
+        revealToken += 1
+    }
 
     val noteCount: Int get() = manifest.notes.size
 
@@ -94,18 +114,19 @@ class PracticeSession(
     /** 「回到当前音」：恢复自动跟随并定位当前音所在行（不改变当前音、选区与播放状态）。 */
     fun followCurrent() {
         follow = true
-        revealRow = PracticeRules.rowOfNote(manifest, cursor)
+        requestReveal(cursor)
     }
 
     fun choose(index: Int, keepRange: Boolean = true, reveal: Boolean = true) {
         pause()
         if (!keepRange && range?.contains(index) == false) range = null
         setCursor(index, false)
-        if (reveal) revealRow = PracticeRules.rowOfNote(manifest, index)
+        if (reveal) requestReveal(index)
     }
 
     fun setCursor(index: Int, didPlay: Boolean) {
         val safe = PracticeRules.clampIndex(index, noteCount)
+        if (revealIndex != safe) revealIndex = null
         playedIndex = safe
         playedValue = didPlay
         cursor = safe
@@ -140,7 +161,7 @@ class PracticeSession(
             return
         }
         choose(index, keepRange = false, reveal = false)
-        revealRow = PracticeRules.rowOfNote(manifest, index)
+        requestReveal(index)
     }
 
     fun step(direction: Int) {
@@ -160,7 +181,7 @@ class PracticeSession(
         pause()
         status = Status.Audition
         setCursor(start, false)
-        revealRow = PracticeRules.rowOfNote(manifest, start)
+        requestReveal(start)
         startPlayback(plan, fullLength = true) { if (status == Status.Audition) status = Status.Paused }
     }
 
@@ -175,8 +196,8 @@ class PracticeSession(
         selecting = false
         anchor = null
         status = Status.Loading
-        follow = true
-        revealRow = PracticeRules.rowOfNote(manifest, plan.startIndex)
+        setCursor(plan.startIndex, false)
+        if (follow) revealRow = PracticeRules.rowOfNote(manifest, plan.startIndex)
         startPlayback(plan) { onPlaybackDone(activeRange) }
     }
 
@@ -242,6 +263,7 @@ class PracticeSession(
     }
 
     fun restart() {
+        follow = true
         play(range?.first ?: 0, range)
     }
 
@@ -272,6 +294,7 @@ class PracticeSession(
     }
 
     fun dispose() {
-        player.stop()
+        pause()
+        revealIndex = null
     }
 }
