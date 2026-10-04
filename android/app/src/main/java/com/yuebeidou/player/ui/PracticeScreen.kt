@@ -30,15 +30,20 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
@@ -54,6 +59,7 @@ import com.yuebeidou.player.settings.SettingsRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.flow.first
 import java.io.File
 
 private val SPEED_PRESETS = listOf(0.5, 0.75, 0.9, 1.0, 1.1)
@@ -85,7 +91,7 @@ fun PracticeScreen(
     val listState = rememberLazyListState()
     var showSpeed by remember { mutableStateOf(false) }
     var showSettings by remember { mutableStateOf(false) }
-    var autoScrolling by remember { mutableStateOf(false) }
+    val notationAreas = remember(manifest) { mutableStateMapOf<Int, NotationArea>() }
     val visibleRows = remember(manifest) { PracticeRules.visibleRows(manifest) }
     val pages = rememberSongImages(manifest, songDir)
     val density = LocalDensity.current
@@ -102,25 +108,51 @@ fun PracticeScreen(
         }
     }
 
-    // 手指挥动即停止自动跟随；点「回到当前音」恢复（与电脑端滚动后停止跟随一致）。
-    LaunchedEffect(listState) {
-        snapshotFlow { listState.isScrollInProgress }.collect { scrolling ->
-            if (scrolling && !autoScrolling) session.follow = false
+    val currentRow = PracticeRules.rowOfNote(manifest, session.cursor)
+    val viewportHeight = listState.layoutInfo.viewportSize.height
+    val browseConnection = remember(listState, session) {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                if (source == NestedScrollSource.UserInput &&
+                    (available.y < 0 && listState.canScrollForward || available.y > 0 && listState.canScrollBackward)
+                ) session.browse()
+                return Offset.Zero
+            }
         }
     }
-    LaunchedEffect(session.revealRow, session.follow) {
-        val row = session.revealRow ?: return@LaunchedEffect
-        if (!session.follow) return@LaunchedEffect
+    // A reveal is either an explicit one-shot request or continuous playback follow.
+    // Direct, cancellable movement avoids queued animations fighting a new gesture.
+    LaunchedEffect(currentRow, session.follow, session.isAutoPlaying, session.revealToken,
+        session.revealIndex, viewportHeight, notationAreas[currentRow]) {
+        val token = session.revealToken
+        val explicit = session.revealIndex != null
+        if (!explicit && (!session.follow || !session.isAutoPlaying)) return@LaunchedEffect
+        val row = if (explicit) PracticeRules.rowOfNote(manifest, session.revealIndex!!) else currentRow
         val position = visibleRows.indexOf(row)
         if (position < 0) return@LaunchedEffect
-        autoScrolling = true
-        listState.animateScrollToItem(position)
-        autoScrolling = false
-    }
-
-    val currentRow = PracticeRules.rowOfNote(manifest, session.cursor)
-    val currentRowVisible by remember {
-        derivedStateOf { listState.layoutInfo.visibleItemsInfo.any { visibleRows.getOrNull(it.index) == currentRow } }
+        fun allowed() = if (explicit) session.revealToken == token && session.revealIndex == session.cursor &&
+            PracticeRules.rowOfNote(manifest, session.cursor) == row
+            else session.follow && session.isAutoPlaying && PracticeRules.rowOfNote(manifest, session.cursor) == row
+        if (!allowed()) return@LaunchedEffect
+        var item = listState.layoutInfo.visibleItemsInfo.firstOrNull { it.index == position }
+        if (item == null) {
+            listState.scrollToItem(position)
+            withFrameNanos { }
+        }
+        val area = notationAreas[row] ?: snapshotFlow { notationAreas[row] }.first { it != null }!!
+        if (!allowed()) return@LaunchedEffect
+        item = listState.layoutInfo.visibleItemsInfo.firstOrNull { it.index == position }
+        val info = listState.layoutInfo
+        if (item != null && info.viewportEndOffset > info.viewportStartOffset) {
+            val margin = with(density) { 12.dp.toPx() }
+            val delta = FollowGeometry.scrollDelta(item.offset + area.top, item.offset + area.top + area.height,
+                info.viewportStartOffset + margin, info.viewportEndOffset - margin, explicit)
+            if (kotlin.math.abs(delta) > 1f && allowed()) {
+                // scrollToItem uses a positive offset to move further down within this row.
+                val offset = (info.viewportStartOffset + delta - item.offset).toInt().coerceAtLeast(0)
+                listState.scrollToItem(position, offset)
+            }
+        }
     }
 
     Column(Modifier.fillMaxSize().background(Color(0xFFFCFCFC))) {
@@ -136,8 +168,8 @@ fun PracticeScreen(
             onSettings = { showSettings = true },
         )
         Box(Modifier.weight(1f).fillMaxWidth()) {
-            LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
-                items(visibleRows.size) { position ->
+            LazyColumn(state = listState, modifier = Modifier.fillMaxSize().nestedScroll(browseConnection)) {
+                items(visibleRows.size, key = { manifest.rows[visibleRows[it]].index }) { position ->
                     val row = manifest.rows[visibleRows[position]]
                     ScoreRowItem(
                         manifest = manifest,
@@ -147,10 +179,15 @@ fun PracticeScreen(
                         activeIndex = if (currentRow == row.index) session.cursor else -1,
                         range = session.range,
                         onNoteTap = { session.tapNote(it) },
+                        follow = session.follow && session.isAutoPlaying,
+                        revealToken = session.revealToken,
+                        revealIndex = session.revealIndex,
+                        onBrowse = { session.browse() },
+                        onNotationArea = { notationAreas[row.index] = it },
                     )
                 }
             }
-            if (!session.follow && !currentRowVisible) {
+            if (!session.follow) {
                 Surface(
                     color = Color(0xFF252725),
                     shape = MaterialTheme.shapes.small,
@@ -162,7 +199,8 @@ fun PracticeScreen(
                         fontSize = 13.sp,
                         modifier = Modifier
                             .clickable { session.followCurrent() }
-                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                            .defaultMinSize(minHeight = 48.dp)
+                            .padding(horizontal = 12.dp, vertical = 14.dp),
                     )
                 }
             }

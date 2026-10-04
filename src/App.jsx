@@ -9,6 +9,8 @@ import {measures} from './model.js';
 import {beatPositions,cropRect} from './layoutRules.js';
 import {flatten,rhythmOf,normalizedRange,nextIndex,playbackPlan,readPreferences,BASE_TEMPO,normalizeRate} from './training.js';
 import {ReturnToCurrent} from './ReturnToCurrent.jsx';
+import {usePlaybackFollow} from './usePlaybackFollow.js';
+import {scrollDelta} from './lib/viewportFollow.js';
 import {useLibrary,filterSongs} from './library.js';
 import {SongPanel,SettingsPanel,Confirm} from './TaskPanels.jsx';
 import {HandoffPanel} from './HandoffPanel.jsx';
@@ -43,11 +45,13 @@ function Training({doc:originalDocument}){
  // 搜索只改列表的可见范围，不进入曲库数据；关闭导航或选中歌曲后收回，避免留下看不见的筛选状态。
  const [searchOpen,setSearchOpen]=useState(false),[query,setQuery]=useState(''),[closing,setClosing]=useState(false);
  const searchInput=useRef(),searchOpenRef=useRef(),closeTimer=useRef();
- const [status,setStatus]=useState('paused'),[selecting,setSelecting]=useState(false),[anchor,setAnchor]=useState(null),[notice,setNotice]=useState(''),[follow,setFollow]=useState(true),[zoom,setZoom]=useState(100),[sourcePage,setSourcePage]=useState(0),[loaded,setLoaded]=useState(0),[size,setSize]=useState(24);
+ const [status,setStatus]=useState('paused'),[selecting,setSelecting]=useState(false),[anchor,setAnchor]=useState(null),[notice,setNotice]=useState(''),[zoom,setZoom]=useState(100),[sourcePage,setSourcePage]=useState(0),[loaded,setLoaded]=useState(0),[size,setSize]=useState(24);
  const played=useRef({index:initial.cursor,value:false});
  const setCursor=(index,didPlay=false)=>{played.current={index,value:didPlay};updateCursor(index);setHasPlayed(didPlay)};
- const player=useRef(new PianoPlayer()),scroll=useRef(),sourceScroll=useRef(),imgs=useRef([]),rows=useRef([]),main=useRef(),latest=useRef(),gesture=useRef(null),pan=useRef(null),followRef=useRef(true),sourceScrollTop=useRef(0),sourceScrollLeft=useRef(0),restoreSource=useRef(null),live=useRef(true),noticeTimer=useRef();
- latest.current={cursor,range,tempo,rate:tempo/baseTempo,baseTempo,status,selecting,anchor};followRef.current=follow;
+ const player=useRef(new PianoPlayer()),scroll=useRef(),sourceScroll=useRef(),imgs=useRef([]),rows=useRef([]),main=useRef(),latest=useRef(),gesture=useRef(null),pan=useRef(null),sourceScrollTop=useRef(0),sourceScrollLeft=useRef(0),restoreSource=useRef(null),live=useRef(true),noticeTimer=useRef(),sourceKey=useRef(null),pendingSource=useRef(null);
+ const tracking=usePlaybackFollow({songId:activeId,revision:doc,enabled:isSalon,sourceClosed,score:scroll,source:sourceScroll,onCheck:()=>followViews()});
+ latest.current={cursor,range,tempo,rate:tempo/baseTempo,baseTempo,status,selecting,anchor,following:tracking.following};
+ useLayoutEffect(()=>{sourceKey.current=null;pendingSource.current=null;restoreSource.current=null;sourceScrollTop.current=0;sourceScrollLeft.current=0},[activeId]);
  const allMeasures=useMemo(()=>measures(doc),[doc]),beams=useMemo(()=>beatPositions(doc,allMeasures),[doc]);
  const offsets=useMemo(()=>{let i=0;return doc.rows.map(r=>{const s=i;i+=r.notes.length;return s})},[doc]);
  const current=notes[Math.min(cursor,notes.length-1)]||{row:0,note:0};
@@ -67,17 +71,44 @@ function Training({doc:originalDocument}){
  useEffect(()=>{if(!import.meta.env.DEV)return;window.__training={snapshot:()=>({...latest.current,hasPlayed:played.current.value,notes:notes.length,missing:notes.filter(n=>!n.annotation.durationTicks).length,audio:{...player.current.stats,activeSources:player.current.sources.size,timers:player.current.timers?.size??0},document:doc,music:doc.music,diagnostics:doc.music?.diagnostics??[]}),previewPlan:options=>playbackPlan(notes,rhythm,options?.startIndex??latest.current.cursor,options?.range??latest.current.range,options?.tempo??latest.current.tempo)};return()=>delete window.__training},[doc,notes,rhythm]);
  useEffect(()=>{if(!library.ready)return;const timer=setTimeout(()=>{writeResource('/api/practice',{activeId,cursor,range,cursorId:notes[cursor]?.id,rangeIds:range?notes.slice(range.startIndex,range.endIndex+1).map(n=>n.id):null,tempo,rate:tempo/baseTempo,navClosed,sourceClosed},{retryOnConflict:true}).catch(e=>setNotice('练习位置未保存：'+e.message))},200);return()=>clearTimeout(timer)},[activeId,cursor,range,tempo,navClosed,sourceClosed,library.ready,notes]);
  useLayoutEffect(()=>{const el=main.current;if(!el)return;const ob=new ResizeObserver(()=>setSize(Math.max(22,Math.min(28,22+(el.clientWidth-500)/100))));ob.observe(el);return()=>ob.disconnect()},[isSalon]);
- const reveal=(index,force=false)=>{const el=rows.current[notes[index].row],sc=scroll.current;if(!el||!sc||(!force&&!followRef.current))return;const r=el.getBoundingClientRect(),s=sc.getBoundingClientRect();if(force||r.top<s.top+12||r.bottom>s.bottom-12)sc.scrollTop+=r.top-s.top-24;};
- const locateOriginal=(index=latest.current.cursor)=>{const r=doc.rows[notes[index].row],img=imgs.current[r.page],sc=sourceScroll.current;if(!img||!sc)return;const rect=cropRect(r.crop,img.naturalWidth,img.naturalHeight);sc.scrollTop+=img.getBoundingClientRect().top-sc.getBoundingClientRect().top+img.clientHeight*(rect.y+rect.height/2)-sc.clientHeight/2;};
- useLayoutEffect(()=>{if(!sourceClosed&&sourceScroll.current&&restoreSource.current!==null&&imgs.current.filter(Boolean).length===salonImages.length&&imgs.current.every(i=>i?.naturalWidth)){sourceScroll.current.scrollTop=restoreSource.current;sourceScroll.current.scrollLeft=sourceScrollLeft.current;sourceScrollTop.current=restoreSource.current;restoreSource.current=null}},[sourceClosed,loaded]);
- const pause=()=>{player.current.stop();setStatus('paused')};
+ const reveal=(index,force=false)=>{
+  if(!force&&!tracking.canFollow('score'))return;
+  const t=scoreTarget(index),sc=scroll.current;if(!t||!sc)return;
+  if(t.horizontal){const v=t.horizontal.getBoundingClientRect();tracking.move(t.horizontal,{left:t.horizontal.scrollLeft+scrollDelta(t.rect.left,t.rect.right,v.left+6,v.right-6)})}
+  const v=sc.getBoundingClientRect();tracking.move(sc,{top:sc.scrollTop+scrollDelta(t.rect.top,t.rect.bottom,v.top+12,v.bottom-12,force)});
+ };
+ const revealSource=(index,force=false)=>{
+  if(!force&&!tracking.canFollow('source'))return;
+  const t=sourceTarget(index),sc=sourceScroll.current;if(!t||!sc)return false;
+  const v=sc.getBoundingClientRect(),changed=sourceKey.current!==t.key;sourceKey.current=t.key;
+  const top=t.pageOnly?(force||changed||t.pageRect.bottom<v.top||t.pageRect.top>v.bottom?t.pageRect.top-v.top-12:0):scrollDelta(t.rect.top,t.rect.bottom,v.top+12,v.bottom-12,force);
+  const left=force||changed||t.rect.right-t.rect.left<=sc.clientWidth-24?scrollDelta(t.rect.left,t.rect.right,v.left+12,v.right-12,force):0;
+  tracking.move(sc,{top:sc.scrollTop+top,left:sc.scrollLeft+left});return true;
+ };
+ const locateOriginal=(index=latest.current.cursor)=>{if(!revealSource(index,true))pendingSource.current={index,song:activeId,document:doc,version:tracking.version('source')};};
+ const followViews=()=>{if(['playing','waiting','loading'].includes(latest.current.status)){reveal(latest.current.cursor);revealSource(latest.current.cursor)}};
+ useLayoutEffect(()=>{tracking.request()},[cursor,status,sourceClosed,navClosed,loaded,size,tracking.following,doc]);
+ useLayoutEffect(()=>{
+  const sc=sourceScroll.current;if(sourceClosed||!sc)return;
+  if(restoreSource.current!==null){
+   if(salonImages.some((_,i)=>!imgs.current[i]?.naturalWidth))return;
+   if(!tracking.canFollow('source')||!['playing','waiting','loading'].includes(latest.current.status))tracking.move(sc,{top:restoreSource.current,left:sourceScrollLeft.current});
+   restoreSource.current=null;
+  }
+  const pending=pendingSource.current;if(pending){
+   if(pending.song!==activeId||pending.document!==doc||pending.index!==cursor||pending.version!==tracking.version('source'))pendingSource.current=null;
+   else if(revealSource(pending.index,true))pendingSource.current=null;
+  }
+ },[sourceClosed,loaded,cursor,doc]);
+ const pause=()=>{tracking.cancel();player.current.stop();setStatus('paused')};
  const choose=(index,{keepRange=true,revealScore=true}={})=>{pause();const s=latest.current;if(!keepRange&&s.range&&(index<s.range.startIndex||index>s.range.endIndex))setRange(null);setCursor(index);if(revealScore)reveal(index,true);};
- async function play(start=latest.current.cursor,r=latest.current.range,t=latest.current.tempo){
+ async function play(start=latest.current.cursor,r=latest.current.range,t=latest.current.tempo,{restart=false}={}){
   if(doc.rows.some(r=>r.recognitionBlocked&&r.notes.length)){message('存在未确认的音符，请先修正乐谱');return;}
   if(incompleteScore){message('部分图片尚无可训练乐谱，请先完成识别和校对');return;}
   try{const plan=playbackPlan(notes,rhythm,start,r,t);const blocking=plan.diagnostics.find(item=>item.severity==='error');if(blocking){message(blocking.message);return;}if(plan.missingIndexes.length){message('选段中有未标注时值');return;}
-   setSelecting(false);setAnchor(null);setStatus('loading');setFollow(true);followRef.current=true;reveal(plan.startIndex,true);
-   await player.current.play(plan,notes,{midiForStep:index=>pitchPlan[index]?.midi??null,onReady:()=>{if(live.current)setStatus('playing')},onNote:i=>{if(!live.current)return;setCursor(i,true);reveal(i)},onDone:()=>{if(!live.current)return;if(r){setStatus('waiting');const g=player.current.generation;player.current.later(()=>{player.current.stats.loops++;void play(r.startIndex,r,latest.current.tempo)},1000,g)}else{setStatus('ended')}}});}catch(e){if(live.current){setStatus('paused');message(e.message)}}
+   if(restart){tracking.resume('score');tracking.resume('source')}
+   setSelecting(false);setAnchor(null);setCursor(plan.startIndex);setStatus('loading');
+   await player.current.play(plan,notes,{midiForStep:index=>pitchPlan[index]?.midi??null,onReady:()=>{if(live.current)setStatus('playing')},onNote:i=>{if(!live.current)return;setCursor(i,true)},onDone:()=>{if(!live.current)return;if(r){setStatus('waiting');const g=player.current.generation;player.current.later(()=>{player.current.stats.loops++;void play(r.startIndex,r,latest.current.tempo)},1000,g)}else{tracking.cancel();setStatus('ended')}}});}catch(e){if(live.current){tracking.cancel();setStatus('paused');message(e.message)}}
   }
  async function audition(index=latest.current.cursor){
   const r=latest.current.range,limit=r?.endIndex??notes.length-1;let end=index;
@@ -106,11 +137,22 @@ function Training({doc:originalDocument}){
  useEffect(()=>{const leave=()=>pause();window.addEventListener('pagehide',leave);return()=>window.removeEventListener('pagehide',leave)},[]);
 
  const noteHit=target=>{const e=target?.closest?.('[data-global-index]');return e?{index:Number(e.dataset.globalIndex),edge:e.dataset.handle}:null;};
- function pointerDown(e){const hit=noteHit(e.target);if(!hit||e.button!==0)return;e.preventDefault();main.current.focus({preventScroll:true});pause();const s=latest.current;gesture.current={start:hit.index,last:hit.index,x:e.clientX,y:e.clientY,drag:false,edge:hit.edge,range:s.range,shift:e.shiftKey,anchor:s.anchor??s.cursor};}
- useEffect(()=>{const move=e=>{const g=gesture.current;if(!g)return;if(Math.hypot(e.clientX-g.x,e.clientY-g.y)>5)g.drag=true;if(!g.drag)return;const sc=scroll.current,rect=sc.getBoundingClientRect();if(e.clientY<rect.top+35)sc.scrollTop-=18;if(e.clientY>rect.bottom-35)sc.scrollTop+=18;const hit=noteHit(document.elementFromPoint(e.clientX,e.clientY));if(!hit)return;g.last=hit.index;const a=g.edge&&g.range?(g.edge==='start'?g.range.endIndex:g.range.startIndex):g.start;setRange(normalizedRange(a,g.last,notes.length));setCursor(g.last);};
- const up=e=>{const g=gesture.current;if(!g)return;gesture.current=null;if(g.drag){setSelecting(false);setAnchor(null);setCursor(Math.min(g.edge&&g.range?(g.edge==='start'?g.range.endIndex:g.range.startIndex):g.start,g.last));return;}if(g.edge)return;const s=latest.current;if(s.selecting){if(s.anchor===null){setAnchor(g.start);setCursor(g.start)}else{setRange(normalizedRange(s.anchor,g.start,notes.length));setCursor(Math.min(s.anchor,g.start));setAnchor(null);setSelecting(false)}}else if(g.shift){setRange(normalizedRange(g.anchor,g.start,notes.length));setCursor(Math.min(g.anchor,g.start));setAnchor(null)}else{choose(g.start,{keepRange:false,revealScore:false});locateOriginal(g.start)}};
+ function pointerDown(e){const hit=noteHit(e.target);if(!hit||e.button!==0)return;const touch=e.pointerType==='touch'&&!hit.edge;if(!touch){e.preventDefault();main.current.focus({preventScroll:true});pause()}const s=latest.current;gesture.current={start:hit.index,last:hit.index,x:e.clientX,y:e.clientY,drag:false,touch,edge:hit.edge,range:s.range,shift:e.shiftKey,anchor:s.anchor??s.cursor};}
+ useEffect(()=>{const move=e=>{const g=gesture.current;if(!g)return;if(Math.hypot(e.clientX-g.x,e.clientY-g.y)>5)g.drag=true;if(g.touch||!g.drag)return;const sc=scroll.current,rect=sc.getBoundingClientRect();if(e.clientY<rect.top+35)sc.scrollTop-=18;if(e.clientY>rect.bottom-35)sc.scrollTop+=18;const hit=noteHit(document.elementFromPoint(e.clientX,e.clientY));if(!hit)return;g.last=hit.index;const a=g.edge&&g.range?(g.edge==='start'?g.range.endIndex:g.range.startIndex):g.start;setRange(normalizedRange(a,g.last,notes.length));setCursor(g.last);};
+ const up=e=>{const g=gesture.current;if(!g)return;gesture.current=null;if(g.touch){if(g.drag)return;pause();main.current.focus({preventScroll:true})}if(g.drag){setSelecting(false);setAnchor(null);setCursor(Math.min(g.edge&&g.range?(g.edge==='start'?g.range.endIndex:g.range.startIndex):g.start,g.last));return;}if(g.edge)return;const s=latest.current;if(s.selecting){if(s.anchor===null){setAnchor(g.start);setCursor(g.start)}else{setRange(normalizedRange(s.anchor,g.start,notes.length));setCursor(Math.min(s.anchor,g.start));setAnchor(null);setSelecting(false)}}else if(g.shift){setRange(normalizedRange(g.anchor,g.start,notes.length));setCursor(Math.min(g.anchor,g.start));setAnchor(null)}else{choose(g.start,{keepRange:false,revealScore:false});locateOriginal(g.start)}};
  const cancel=()=>{gesture.current=null};window.addEventListener('pointermove',move);window.addEventListener('pointerup',up);window.addEventListener('pointercancel',cancel);return()=>{window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',up);window.removeEventListener('pointercancel',cancel)}},[doc]);
- useEffect(()=>{const move=e=>{const g=pan.current,sc=sourceScroll.current;if(!g||!sc)return;sc.scrollLeft=g.left-(e.clientX-g.x);sc.scrollTop=g.top-(e.clientY-g.y)};const up=()=>{pan.current=null;sourceScroll.current?.classList.remove('panning')};window.addEventListener('pointermove',move);window.addEventListener('pointerup',up);window.addEventListener('pointercancel',up);const preventCaret=e=>{if(!e.target.closest('input:not([type=range]),textarea,[contenteditable=true]')){window.getSelection()?.removeAllRanges();if(!e.target.closest('button,a,input,select'))e.preventDefault()}};document.addEventListener('mousedown',preventCaret);return()=>{window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',up);window.removeEventListener('pointercancel',up);document.removeEventListener('mousedown',preventCaret)}},[]);
+ useEffect(()=>{
+  const move=e=>{const g=pan.current,sc=sourceScroll.current;if(!g||!sc||Math.hypot(e.clientX-g.x,e.clientY-g.y)<6&&!g.moved)return;g.moved=true;const before={top:sc.scrollTop,left:sc.scrollLeft};sc.scrollLeft=g.left-(e.clientX-g.x);sc.scrollTop=g.top-(e.clientY-g.y);if(Math.abs(before.top-sc.scrollTop)>.5||Math.abs(before.left-sc.scrollLeft)>.5)tracking.browse('source')};
+  const up=()=>{pan.current=null;sourceScroll.current?.classList.remove('panning')};
+  const preventCaret=e=>{
+   if(e.target.closest('input:not([type=range]),textarea,[contenteditable=true]'))return;
+   const sc=e.target.closest('.score-scroll,.source-scroll,.measure-scroll');
+   if(sc){const r=sc.getBoundingClientRect();if(e.clientX>=r.left+sc.clientLeft+sc.clientWidth||e.clientY>=r.top+sc.clientTop+sc.clientHeight)return;}
+   window.getSelection()?.removeAllRanges();if(!e.target.closest('button,a,input,select'))e.preventDefault();
+  };
+  window.addEventListener('pointermove',move);window.addEventListener('pointerup',up);window.addEventListener('pointercancel',up);document.addEventListener('mousedown',preventCaret);
+  return()=>{window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',up);window.removeEventListener('pointercancel',up);document.removeEventListener('mousedown',preventCaret)};
+ },[]);
  const focusMain=()=>main.current?.focus({preventScroll:true});
  const changeNav=()=>{setNavClosed(v=>!v);setSearchOpen(false);setQuery('');focusMain()};
  const changeSource=()=>{if(sourceScroll.current){sourceScrollTop.current=sourceScroll.current.scrollTop;sourceScrollLeft.current=sourceScroll.current.scrollLeft;}if(sourceClosed)restoreSource.current=sourceScrollTop.current;setSourceClosed(v=>!v);focusMain()};
@@ -123,10 +165,18 @@ function Training({doc:originalDocument}){
  const closeSearch=()=>{if(!searchOpen)return;setQuery('');setSearchOpen(false);setClosing(true)};
  const visibleSongs=useMemo(()=>library.songs.filter(s=>s.completed||s.images.length||s.deletedImages?.length),[library.songs]);
  const matchedSongs=useMemo(()=>filterSongs(visibleSongs,query),[visibleSongs,query]);
- const sourceTarget=()=>{if(!notes[latest.current.cursor])return null;const r=doc.rows[notes[latest.current.cursor].row],img=imgs.current[r.page];if(!img?.naturalWidth)return null;const c=cropRect(r.crop,img.naturalWidth,img.naturalHeight),b=img.getBoundingClientRect();return {rect:{top:b.top+b.height*c.y,bottom:b.top+b.height*(c.y+c.height),left:b.left+b.width*c.x,right:b.left+b.width*(c.x+c.width),height:b.height*c.height}}};
- const scoreTarget=()=>{const el=main.current?.querySelector(`.engraved-note[data-global-index="${latest.current.cursor}"] .note-digit`);return el?{rect:el.getBoundingClientRect(),clip:el.closest('.measure-scroll').getBoundingClientRect()}:null};
- const returnScore=()=>{reveal(latest.current.cursor,true);const el=main.current?.querySelector(`.engraved-note[data-global-index="${latest.current.cursor}"] .note-digit`),sc=el?.closest('.measure-scroll');if(sc){const r=el.getBoundingClientRect(),v=sc.getBoundingClientRect();if(r.left<v.left||r.right>v.right)sc.scrollLeft+=r.left-v.left-sc.clientWidth/2}};
- const returnSource=()=>{locateOriginal();const t=sourceTarget(),sc=sourceScroll.current;if(t&&sc){const v=sc.getBoundingClientRect();sc.scrollLeft+=(t.rect.left+t.rect.right)/2-(v.left+v.right)/2}};
+ const sourceTarget=(index=latest.current.cursor)=>{
+  const note=notes[index];if(!note)return null;const r=doc.rows[note.row],img=imgs.current[r.page];if(!img?.naturalWidth||!img.clientHeight)return null;
+  const c=cropRect(r.crop,img.naturalWidth,img.naturalHeight),b=img.getBoundingClientRect(),pageOnly=!r.crop||c.invalid;
+  return {key:pageOnly?'page:'+r.page:r.id,pageOnly,pageRect:b,rect:{top:b.top+b.height*c.y,bottom:b.top+b.height*(c.y+c.height),left:b.left+b.width*c.x,right:b.left+b.width*(c.x+c.width),height:b.height*c.height}};
+ };
+ const scoreTarget=(index=latest.current.cursor)=>{
+  const el=main.current?.querySelector(`.engraved-note[data-global-index="${index}"]`);if(!el)return null;
+  const r=el.getBoundingClientRect(),band=el.closest('.engraved-row').getBoundingClientRect(),horizontal=el.closest('.measure-scroll');
+  return {rect:{left:r.left,right:r.right,top:band.top,bottom:band.bottom,height:band.height},clip:horizontal.getBoundingClientRect(),horizontal};
+ };
+ const returnScore=()=>{tracking.resume('score');reveal(latest.current.cursor,true)};
+ const returnSource=()=>{tracking.resume('source');locateOriginal()};
  const returnViews=(side,both)=>{if(side==='source'||both)returnSource();if(side==='score'||both)returnScore()};
  const previousBase=useRef(baseTempo);
  useEffect(()=>{if(previousBase.current!==baseTempo){const rate=latest.current.tempo/previousBase.current;setTempo(baseTempo*normalizeRate(rate));previousBase.current=baseTempo}player.current.key='1='+(activeSong?.key??'E')+(activeSong?.octave??4)},[baseTempo,activeSong?.key,activeSong?.octave]);
@@ -149,24 +199,24 @@ function Training({doc:originalDocument}){
   </aside>
   {isSalon&&!sourceClosed&&<section className="original" aria-label="原始乐谱">
     <header className="source-header"><div><strong>原始简谱</strong><small>第 {Math.min(sourcePage+1,salonImages.length)} / {salonImages.length} 页</small></div><button className="icon-button" onClick={changeSource} aria-label="关闭原谱" title="关闭原谱" aria-expanded="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></header>
-    <div className="source-controls"><div><button aria-label="缩小原谱" disabled={zoom<=100} onClick={()=>setZoom(z=>z-25)}>−</button><button onClick={()=>setZoom(100)} title="恢复原图缩放">{zoom}%</button><button aria-label="放大原谱" disabled={zoom>=250} onClick={()=>setZoom(z=>z+25)}>＋</button></div></div>
-    <div className="pane-viewport source-viewport"><div className={"source-scroll "+(zoom>100?"zoomed":"")} ref={sourceScroll} onPointerDown={e=>{if(zoom<=100||e.button!==0||!e.target.closest(".image-surface"))return;e.preventDefault();pan.current={x:e.clientX,y:e.clientY,left:sourceScroll.current.scrollLeft,top:sourceScroll.current.scrollTop};sourceScroll.current.classList.add("panning")}} onScroll={()=>{const sc=sourceScroll.current;if(restoreSource.current===null)sourceScrollTop.current=sc.scrollTop;const y=sc.getBoundingClientRect().top+sc.clientHeight/2;let best=0,min=Infinity;imgs.current.forEach((img,i)=>{if(!img)return;const r=img.getBoundingClientRect(),d=y<r.top?r.top-y:y>r.bottom?y-r.bottom:0;if(d<min){min=d;best=i}});setSourcePage(best)}}>
-    <div style={{width:zoom+'%'}} className="source-pages">{salonImages.map((image,page)=><figure key={image.id}><div className="image-surface"><img ref={el=>imgs.current[page]=el} src={image.src} alt={(activeSong?.title||'')+'原谱第'+(page+1)+'页'} draggable="false" onLoad={()=>setLoaded(v=>v+1)}/>{imgs.current[page]?.naturalWidth>0&&highlightedRows.filter(i=>doc.rows[i].page===page&&!(doc.rows[i].sourceMapping==='page'&&!doc.rows[i].crop)&&doc.rows[i].notes.length).map(i=><div key={i} data-row={i} className="source-highlight" style={(()=>{const c=cropRect(doc.rows[i].crop,imgs.current[page].naturalWidth,imgs.current[page].naturalHeight);return {...cropPolygonStyle(doc.rows[i].crop),top:c.y*100+'%',height:c.height*100+'%',left:c.x*100+'%',width:c.width*100+'%'}})()}/>)}<SourceRowTargets rows={doc.rows} page={page} image={imgs.current[page]} current={current.row} doubleClick={zoom>100} hidden={r=>!r.notes.length} onSelect={i=>{if(latest.current.range)reveal(offsets[i],true);else choose(offsets[i]);}}/></div><figcaption>{page+1} / {salonImages.length}</figcaption></figure>)}</div></div><ReturnToCurrent viewport={sourceScroll} getTarget={sourceTarget} onReturn={both=>returnViews('source',both)} label="原谱"/></div>
+    <div className="source-controls"><div><button aria-label="缩小原谱" disabled={zoom<=100} onClick={()=>{tracking.browse('source');setZoom(z=>z-25)}}>−</button><button onClick={()=>{if(zoom!==100)tracking.browse('source');setZoom(100)}} title="恢复原图缩放">{zoom}%</button><button aria-label="放大原谱" disabled={zoom>=250} onClick={()=>{tracking.browse('source');setZoom(z=>z+25)}}>＋</button></div></div>
+    <div className="pane-viewport source-viewport"><div className={"source-scroll "+(zoom>100?"zoomed":"")} ref={sourceScroll} tabIndex={0} aria-label="浏览原谱" onPointerDown={e=>{if(zoom<=100||e.button!==0||!e.target.closest(".image-surface"))return;e.preventDefault();pan.current={x:e.clientX,y:e.clientY,left:sourceScroll.current.scrollLeft,top:sourceScroll.current.scrollTop};sourceScroll.current.classList.add("panning")}} onScroll={()=>{const sc=sourceScroll.current;if(restoreSource.current===null){sourceScrollTop.current=sc.scrollTop;sourceScrollLeft.current=sc.scrollLeft}const y=sc.getBoundingClientRect().top+sc.clientHeight/2;let best=0,min=Infinity;imgs.current.forEach((img,i)=>{if(!img)return;const r=img.getBoundingClientRect(),d=y<r.top?r.top-y:y>r.bottom?y-r.bottom:0;if(d<min){min=d;best=i}});setSourcePage(best)}}>
+    <div style={{width:zoom+'%'}} className="source-pages">{salonImages.map((image,page)=><figure key={image.id}><div className="image-surface"><img ref={el=>imgs.current[page]=el} src={image.src} alt={(activeSong?.title||'')+'原谱第'+(page+1)+'页'} draggable="false" onLoad={()=>setLoaded(v=>v+1)}/>{imgs.current[page]?.naturalWidth>0&&highlightedRows.filter(i=>doc.rows[i].page===page&&!(doc.rows[i].sourceMapping==='page'&&!doc.rows[i].crop)&&doc.rows[i].notes.length).map(i=><div key={i} data-row={i} className="source-highlight" style={(()=>{const c=cropRect(doc.rows[i].crop,imgs.current[page].naturalWidth,imgs.current[page].naturalHeight);return {...cropPolygonStyle(doc.rows[i].crop),top:c.y*100+'%',height:c.height*100+'%',left:c.x*100+'%',width:c.width*100+'%'}})()}/>)}<SourceRowTargets rows={doc.rows} page={page} image={imgs.current[page]} current={current.row} doubleClick={zoom>100} hidden={r=>!r.notes.length} onSelect={i=>{if(latest.current.range)reveal(offsets[i],true);else choose(offsets[i]);}}/></div><figcaption>{page+1} / {salonImages.length}</figcaption></figure>)}</div></div><ReturnToCurrent viewport={sourceScroll} getTarget={sourceTarget} onReturn={both=>returnViews('source',both)} label="原谱" following={tracking.following.source}/></div>
   </section>}
   {isSalon?<main id="training" className="training" ref={main} tabIndex={-1} aria-label="歌曲训练">
    <header className="training-header"><div className="song-heading"><h1>{activeSong.title}</h1><span>1={activeSong.key}</span><span>{doc.meter.beats}/{doc.meter.beatUnit}</span><button className="text-button handoff-open" onClick={openHandoff}>发送到手机</button></div><div className="header-actions"><button className="text-button" disabled={!sourceClosed} onClick={()=>{if(sourceClosed)changeSource()}} aria-expanded={!sourceClosed}>{sourceClosed?'查看原谱':'原谱已展开'}</button><span className="separator"/><button className="text-button" onClick={openEditor}>修正乐谱</button></div></header>
-   <div className="pane-viewport training-viewport"><div className={'score-scroll '+(selecting?'selecting':'')} ref={scroll} onPointerDown={pointerDown} onWheel={()=>setFollow(false)} onTouchMove={()=>setFollow(false)}>
+   <div className="pane-viewport training-viewport"><div className={'score-scroll '+(selecting?'selecting':'')} ref={scroll} tabIndex={0} aria-label="浏览训练谱" onPointerDown={pointerDown}>
     {visibleRows.map(([r,i])=><section className={'score-row '+(current.row===i?'current-row':'')} data-row={i} key={r.id} ref={el=>rows.current[i]=el} aria-label={'第'+(r.page+1)+'页第'+(r.line+1)+'行谱面'}>
      <div className="row-location">{r.seamNeedsReview&&<span>跨页连接待检查</span>}<span>第 {r.page+1} 页 · 第 {r.line+1} 行</span>{range&&range.startIndex>=offsets[i]&&range.startIndex<offsets[i]+r.notes.length&&<span className="range-caption">练习片段</span>}</div>
      <CropPreview src={r.src} page={r.page} line={r.line} band={r.crop}/>
-     <EngravedRow document={doc} rowIndex={i} row={r} offset={offsets[i]} allMeasures={allMeasures} active={current.row===i?current.note:-1} previousTie={i>0&&Boolean(doc.rows[i-1].notes.at(-1)?.annotation.tieToNext)} nextExists={i<doc.rows.length-1} fontSize={size} beamGroups={beams} range={range}/>
+     <EngravedRow document={doc} rowIndex={i} row={r} offset={offsets[i]} allMeasures={allMeasures} active={current.row===i?current.note:-1} previousTie={i>0&&Boolean(doc.rows[i-1].notes.at(-1)?.annotation.tieToNext)} nextExists={i<doc.rows.length-1} fontSize={size} beamGroups={beams} range={range} autoReveal={false} onBrowse={()=>tracking.browse('score')}/>
     </section>)}
     <div className="score-end">{incompleteScore?'部分图片尚无可训练乐谱，暂不能自动演奏':emptyRows?`有 ${emptyRows} 行没有识别到音符，已忽略（可在“修正乐谱”中处理）`:'全曲结束'}</div>
    </div>
-   <ReturnToCurrent viewport={scroll} getTarget={scoreTarget} onReturn={both=>returnViews('score',both)} label="训练谱"/></div>
+   <ReturnToCurrent viewport={scroll} getTarget={scoreTarget} onReturn={both=>returnViews('score',both)} label="训练谱" following={tracking.following.score}/></div>
    <div className="playback-dock">
     <div className="dock-status"><div>{selecting?<span className="selection-instruction">{anchor===null?'点选起音，再点选止音':'请选择片段的止音'}</span>:<><span className={'scope '+(range?'looping':'')}><span aria-hidden="true">{range?'↻':'♫'}</span>{range?'片段循环':'全曲演奏'}</span><small>{range?scopeLabel:status==='ended'?'已播放完毕':status==='waiting'?'稍后重复':''}</small></>}{range&&!selecting&&<button className="text-button" onClick={clearRange}>取消选段</button>}</div><div><button className={'select-button '+(selecting?'pressed':'')} aria-pressed={selecting} onClick={startSelection}>{selecting?'取消':'选段'}</button></div></div>
-    <div className="transport"><div className="step-controls"><button aria-label="上一音" title="上一音（←）" onClick={()=>step(-1)} disabled={!range&&cursor===0&&hasPlayed}>‹</button><button className="audition-button" onClick={()=>audition()} title="试听当前音（Enter）">试听当前音</button><button aria-label="下一音" title="下一音（→）" onClick={()=>step(1)} disabled={!range&&cursor===notes.length-1&&hasPlayed}>›</button></div><button className="play-button" onClick={togglePlay} aria-label={active?'暂停':'播放'}><span aria-hidden="true">{active?'Ⅱ':'▶'}</span>{status==='loading'?'准备中':active?'暂停':'播放'}</button><button className="restart-button" title="从当前练习范围的开头播放" onClick={()=>play(range?.startIndex??0)}>从头播放</button><SpeedControl rate={tempo/baseTempo} baseTempo={baseTempo} onChange={commitRate}/></div>
+    <div className="transport"><div className="step-controls"><button aria-label="上一音" title="上一音（←）" onClick={()=>step(-1)} disabled={!range&&cursor===0&&hasPlayed}>‹</button><button className="audition-button" onClick={()=>audition()} title="试听当前音（Enter）">试听当前音</button><button aria-label="下一音" title="下一音（→）" onClick={()=>step(1)} disabled={!range&&cursor===notes.length-1&&hasPlayed}>›</button></div><button className="play-button" onClick={togglePlay} aria-label={active?'暂停':'播放'}><span aria-hidden="true">{active?'Ⅱ':'▶'}</span>{status==='loading'?'准备中':active?'暂停':'播放'}</button><button className="restart-button" title="从当前练习范围的开头播放" onClick={()=>play(range?.startIndex??0,latest.current.range,latest.current.tempo,{restart:true})}>从头播放</button><SpeedControl rate={tempo/baseTempo} baseTempo={baseTempo} onChange={commitRate}/></div>
    </div>
    {notice&&<div className="toast" role="status">{notice}</div>}
   </main>:<main className="training"><header className="training-header"><div className="song-heading"><h1>{activeSong?.title||'乐北斗'}</h1></div></header><div className="imported-empty"><h2>{activeSong?.id==='salon'?'当前没有可训练音符':activeSong?'图片已准备好':'选择歌曲，开始练习'}</h2><p>{activeSong?'尚无完整音符数据，请完成图片识别。':'从左侧选择歌曲，或新建歌曲导入乐谱图片。'}</p>{activeSong&&<button onClick={()=>openTask(activeSong.id,'recognition')}>管理歌曲</button>}</div></main>}

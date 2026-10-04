@@ -48,3 +48,4 @@
 .handoff-open{border:1px solid #dededa;border-radius:5px;padding:4px 9px}
 .handoff-open:hover:not(:disabled){text-decoration:none;border-color:#b9b9b1;background:#f7f7f5}
 @media(max-width:850px){.handoff-open{padding:3px 6px}}
+.return-current.free-browse{opacity:1;pointer-events:auto}.score-scroll,.source-scroll{outline-offset:-2px}
